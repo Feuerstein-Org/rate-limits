@@ -1,4 +1,5 @@
 import asyncio
+from typing import cast
 
 import pytest
 from redis.asyncio import Redis as AsyncRedis
@@ -10,7 +11,7 @@ from limiters import AsyncSemaphore, AsyncTokenBucket, SyncSemaphore, SyncTokenB
 
 
 @pytest.mark.parametrize(
-    'klass,port,limiters',
+    "klass,port,limiters",
     [
         (SyncRedis, 6378, [SyncSemaphore, SyncTokenBucket]),
         (SyncRedisCluster, 6380, [SyncSemaphore, SyncTokenBucket]),
@@ -18,22 +19,33 @@ from limiters import AsyncSemaphore, AsyncTokenBucket, SyncSemaphore, SyncTokenB
         (AsyncRedisCluster, 6380, [AsyncSemaphore, AsyncTokenBucket]),
     ],
 )
-def test_redis_cluster(klass, port, limiters):
-    connection = klass.from_url(f'redis://127.0.0.1:{port}')
-    if hasattr(connection, '__aenter__'):
+def test_redis_cluster(
+    klass: SyncRedis | AsyncRedis,
+    port: int,
+    limiters: list[type[SyncTokenBucket | AsyncTokenBucket | SyncSemaphore | AsyncSemaphore]],
+) -> None:
+    connection = klass.from_url(f"redis://127.0.0.1:{port}")
+    if hasattr(connection, "__aenter__"):
         # Async connection
-        asyncio.get_event_loop().run_until_complete(connection.get('INFO'))
+        async def test_async() -> None:
+            async_connection = cast(AsyncRedis, connection)
+            async with async_connection:
+                await async_connection.info()
+
+        asyncio.run(test_async())
     else:
         # Sync connection
-        connection.get('INFO')
+        connection.info()
 
+    # Test that all limiters can be instantiated with the connection
+    # Ignore statements for properties that are unique in async and sync versions
     for limiter in limiters:
         limiter(
-            name='test',
+            name="test",
             capacity=99,
             max_sleep=99,
-            expiry=99,
-            refill_frequency=99,
-            refill_amount=99,
+            expiry=99,  # pyright: ignore
+            refill_frequency=99,  # pyright: ignore
+            refill_amount=99,  # pyright: ignore
             connection=connection,
         )

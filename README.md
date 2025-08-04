@@ -25,7 +25,7 @@ The semaphore classes are useful when you have concurrency restrictions;
 e.g., say you're allowed 5 active requests at the time for a given API token.
 
 Beware that the client will block until the Semaphore is acquired,
-or the `max_sleep` limit is exceeded. If the `max_sleep` limit is exceeded, a `MaxSleepExceededError` is raised.
+or the `max_sleep` limit is exceeded. If the `max_sleep` limit is exceeded, a `MaxSleepExceededError` is raised. Setting `max_sleep` to 0.0 will sleep "endlessly" - this is also the default value.
 
 Here's how you might use the async version:
 
@@ -85,7 +85,7 @@ def main():
 The `TocketBucket` classes are useful if you're working with time-based
 rate limits. Say, you are allowed 100 requests per minute, for a given API token.
 
-If the `max_sleep` limit is exceeded, a `MaxSleepExceededError` is raised.
+If the `max_sleep` limit is exceeded, a `MaxSleepExceededError` is raised. Setting `max_sleep` to 0.0 will sleep "endlessly" - this is also the default value.
 
 Here's how you might use the async version:
 
