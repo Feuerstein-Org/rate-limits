@@ -31,9 +31,9 @@ def create_redis_time_tuple() -> tuple[int, int]:
 
 class TokenBucketBase(BaseModel):
     name: str
-    capacity: PositiveFloat
-    refill_frequency: PositiveFloat
-    refill_amount: PositiveFloat
+    capacity: PositiveFloat = 1.0
+    refill_frequency: PositiveFloat = 1.0
+    refill_amount: PositiveFloat = 1.0
     max_sleep: NonNegativeFloat = 0.0
 
     def parse_timestamp(self, timestamp: int) -> float:
@@ -57,7 +57,7 @@ class TokenBucketBase(BaseModel):
                 f"This exceeds the maximum accepted sleep time of `{self.max_sleep}` seconds for {self.name}."
             )
 
-        logger.info('Sleeping %s seconds (%s)', sleep_time, self.name)
+        logger.info("Sleeping %s seconds (%s)", sleep_time, self.name)
         return sleep_time
 
     @property
@@ -69,7 +69,7 @@ class TokenBucketBase(BaseModel):
 
 
 class SyncTokenBucket(TokenBucketBase, SyncLuaScriptBase):
-    script_name: ClassVar[str] = 'token_bucket.lua'
+    script_name: ClassVar[str] = "token_bucket.lua"
 
     def __enter__(self) -> float:
         """
@@ -105,7 +105,7 @@ class SyncTokenBucket(TokenBucketBase, SyncLuaScriptBase):
 
 
 class AsyncTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
-    script_name: ClassVar[str] = 'token_bucket.lua'
+    script_name: ClassVar[str] = "token_bucket.lua"
 
     async def __aenter__(self) -> None:
         """

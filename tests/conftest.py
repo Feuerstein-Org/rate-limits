@@ -18,8 +18,11 @@ logger: Logger = logging.getLogger(__name__)
 
 REPO_ROOT: Path = Path(__file__).parent.parent
 
-STANDALONE_URL = 'redis://127.0.0.1:6378'
-CLUSTER_URL = 'redis://127.0.0.1:6380'
+# TODO: Add retry logic to silence deprecation warning in test for
+# 'cluster_error_retry_attempts' which is set by default.
+# https://redis.readthedocs.io/en/stable/retry.html#retry-in-redis-cluster
+STANDALONE_URL = "redis://127.0.0.1:6378"
+CLUSTER_URL = "redis://127.0.0.1:6380"
 
 STANDALONE_SYNC_CONNECTION = partial(SyncRedis.from_url, STANDALONE_URL)
 CLUSTER_SYNC_CONNECTION = partial(SyncRedisCluster.from_url, CLUSTER_URL)
@@ -76,6 +79,8 @@ def async_tokenbucket_factory(
 class SemaphoreConfig:
     name: str = field(default_factory=lambda: uuid4().hex[:6])
     capacity: int = 1
+    expiry: int = 30
+    max_sleep: float = 0.0
 
 
 def sync_semaphore_factory(

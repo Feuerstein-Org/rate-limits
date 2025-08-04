@@ -24,22 +24,23 @@ logger = logging.getLogger(__name__)
 ConnectionFactory = partial[Redis] | partial[RedisCluster]
 
 
-@pytest.mark.parametrize('connection_factory', ASYNC_CONNECTIONS)
+@pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
 @pytest.mark.parametrize(
-    'n, frequency, timeout',
+    "n, frequency, timeout",
     [
         (10, 0.1, 1),
         (2, 1, 2),
     ],
 )
-async def test_token_bucket_runtimes(connection_factory: ConnectionFactory, n: int, frequency: float, timeout: int):
-    connection = connection_factory()
+async def test_token_bucket_runtimes(
+    connection_factory: ConnectionFactory, n: int, frequency: float, timeout: int
+) -> None:
     config = TokenBucketConfig(refill_frequency=frequency)
     # Ensure n tasks never complete in less than n/(refill_frequency * refill_amount)
     tasks = [
         asyncio.create_task(
             run(
-                async_tokenbucket_factory(connection=connection, config=config),
+                async_tokenbucket_factory(connection=connection_factory(), config=config),
                 sleep_duration=0,
             )
         )
@@ -52,8 +53,8 @@ async def test_token_bucket_runtimes(connection_factory: ConnectionFactory, n: i
     assert abs(timeout - elapsed) <= 0.01
 
 
-@pytest.mark.parametrize('connection_factory', [STANDALONE_ASYNC_CONNECTION])
-async def test_sleep_is_non_blocking(connection_factory: ConnectionFactory) -> None:
+@pytest.mark.parametrize("connection_factory", [STANDALONE_ASYNC_CONNECTION])
+async def test_sleep_is_non_blocking(connection_factory: partial[Redis]) -> None:
     async def _sleep(sleep_duration: float) -> None:
         await asyncio.sleep(sleep_duration)
 
@@ -88,12 +89,11 @@ async def test_sleep_is_non_blocking(connection_factory: ConnectionFactory) -> N
     await asyncio.wait_for(timeout=2.2, fut=asyncio.gather(*tasks))
 
 
-@pytest.mark.parametrize('connection_factory', ASYNC_CONNECTIONS)
+@pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
 async def test_high_concurrency_token_acquisition(connection_factory: ConnectionFactory) -> None:
     """Test many concurrent tasks accessing the same bucket"""
-    connection = connection_factory()
     bucket = async_tokenbucket_factory(
-        connection=connection, config=TokenBucketConfig(capacity=5, refill_frequency=0.1, refill_amount=5)
+        connection=connection_factory(), config=TokenBucketConfig(capacity=5, refill_frequency=0.1, refill_amount=5)
     )
 
     tasks = [asyncio.create_task(run(bucket, 0)) for _ in range(100)]
@@ -105,43 +105,43 @@ async def test_high_concurrency_token_acquisition(connection_factory: Connection
     assert elapsed >= 1.8
 
 
-@pytest.mark.parametrize('connection_factory', ASYNC_CONNECTIONS)
+@pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
 def test_repr(connection_factory: ConnectionFactory) -> None:
-    config = TokenBucketConfig(name='test', capacity=1)
+    config = TokenBucketConfig(name="test", capacity=1)
     tb = async_tokenbucket_factory(connection=connection_factory(), config=config)
-    assert re.match(r'Token bucket instance for queue {limiter}:token-bucket:test', str(tb))
+    assert re.match(r"Token bucket instance for queue {limiter}:token-bucket:test", str(tb))
 
 
-@pytest.mark.parametrize('connection_factory', ASYNC_CONNECTIONS)
+@pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
 @pytest.mark.parametrize(
-    'config_params,error',
+    "config_params,error",
     [
-        ({'name': 'test'}, None),
-        ({'name': None}, ValidationError),
-        ({'name': 1}, ValidationError),
-        ({'name': True}, ValidationError),
-        ({'capacity': 2}, None),
-        ({'capacity': 2.2}, None),
-        ({'capacity': -1}, ValidationError),
-        ({'capacity': None}, ValidationError),
-        ({'capacity': 'test'}, ValidationError),
-        ({'refill_frequency': 2}, None),
-        ({'refill_frequency': 2.2}, None),
-        ({'refill_frequency': 'test'}, ValidationError),
-        ({'refill_frequency': None}, ValidationError),
-        ({'refill_frequency': -1}, ValidationError),
-        ({'refill_amount': 2}, None),
-        ({'refill_amount': 2.2}, None),
-        ({'refill_amount': -1}, ValidationError),
-        ({'refill_amount': 'test'}, ValidationError),
-        ({'refill_amount': None}, ValidationError),
-        ({'max_sleep': 20}, None),
-        ({'max_sleep': 0}, None),
-        ({'max_sleep': 'test'}, ValidationError),
-        ({'max_sleep': None}, ValidationError),
+        ({"name": "test"}, None),
+        ({"name": None}, ValidationError),
+        ({"name": 1}, ValidationError),
+        ({"name": True}, ValidationError),
+        ({"capacity": 2}, None),
+        ({"capacity": 2.2}, None),
+        ({"capacity": -1}, ValidationError),
+        ({"capacity": None}, ValidationError),
+        ({"capacity": "test"}, ValidationError),
+        ({"refill_frequency": 2}, None),
+        ({"refill_frequency": 2.2}, None),
+        ({"refill_frequency": "test"}, ValidationError),
+        ({"refill_frequency": None}, ValidationError),
+        ({"refill_frequency": -1}, ValidationError),
+        ({"refill_amount": 2}, None),
+        ({"refill_amount": 2.2}, None),
+        ({"refill_amount": -1}, ValidationError),
+        ({"refill_amount": "test"}, ValidationError),
+        ({"refill_amount": None}, ValidationError),
+        ({"max_sleep": 20}, None),
+        ({"max_sleep": 0}, None),
+        ({"max_sleep": "test"}, ValidationError),
+        ({"max_sleep": None}, ValidationError),
     ],
 )
-def test_init_types(connection_factory: ConnectionFactory, config_params, error) -> None:
+def test_init_types(connection_factory: ConnectionFactory, config_params, error) -> None:  # type: ignore[no-untyped-def]
     if error:
         with pytest.raises(error):
             async_tokenbucket_factory(connection=connection_factory(), config=TokenBucketConfig(**config_params))
@@ -150,13 +150,12 @@ def test_init_types(connection_factory: ConnectionFactory, config_params, error)
         async_tokenbucket_factory(connection=connection_factory(), config=config)
 
 
-@pytest.mark.filterwarnings('ignore::RuntimeWarning')
-@pytest.mark.parametrize('connection_factory', ASYNC_CONNECTIONS)
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+@pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
 async def test_async_max_sleep(connection_factory: ConnectionFactory) -> None:
-    connection = connection_factory()
     e = (
-        r'Scheduled to sleep \`[0-9].[0-9]+\` seconds. This exceeds the maximum accepted sleep time of \`1\.0\`'
-        r' seconds.'
+        r"Scheduled to sleep \`[0-9].[0-9]+\` seconds. This exceeds the maximum accepted sleep time of \`1\.0\`"
+        r" seconds."
     )
     # This will cause the same name (key) be used for different buckets
     config = TokenBucketConfig(max_sleep=1)
@@ -164,7 +163,7 @@ async def test_async_max_sleep(connection_factory: ConnectionFactory) -> None:
     with pytest.raises(MaxSleepExceededError, match=e):
         await asyncio.gather(
             *[
-                asyncio.create_task(run(async_tokenbucket_factory(connection=connection, config=config), 0))
+                asyncio.create_task(run(async_tokenbucket_factory(connection=connection_factory(), config=config), 0))
                 for _ in range(10)
             ]
         )
