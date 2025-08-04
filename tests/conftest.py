@@ -12,15 +12,12 @@ from redis.asyncio.cluster import RedisCluster as AsyncRedisCluster
 from redis.client import Redis as SyncRedis
 from redis.cluster import RedisCluster as SyncRedisCluster
 
-from limiters import AsyncSemaphore, AsyncTokenBucket, SyncSemaphore, SyncTokenBucket
+from redis_limiters import AsyncSemaphore, AsyncTokenBucket, SyncSemaphore, SyncTokenBucket
 
 logger: Logger = logging.getLogger(__name__)
 
 REPO_ROOT: Path = Path(__file__).parent.parent
 
-# TODO: Add retry logic to silence deprecation warning in test for
-# 'cluster_error_retry_attempts' which is set by default.
-# https://redis.readthedocs.io/en/stable/retry.html#retry-in-redis-cluster
 STANDALONE_URL = "redis://127.0.0.1:6378"
 CLUSTER_URL = "redis://127.0.0.1:6380"
 
@@ -57,23 +54,15 @@ class TokenBucketConfig:
     max_sleep: float = 0.0
 
 
-def sync_tokenbucket_factory(
-    *, connection: SyncRedis | SyncRedisCluster, config: TokenBucketConfig | None = None
-) -> SyncTokenBucket:
-    if config is None:
-        config = TokenBucketConfig()
-
+def sync_tokenbucket_factory(*, connection: SyncRedis | SyncRedisCluster, config: TokenBucketConfig) -> SyncTokenBucket:
     return SyncTokenBucket(connection=connection, **asdict(config))
 
 
 def async_tokenbucket_factory(
     *,
     connection: AsyncRedis | AsyncRedisCluster,
-    config: TokenBucketConfig | None = None,
+    config: TokenBucketConfig,
 ) -> AsyncTokenBucket:
-    if config is None:
-        config = TokenBucketConfig()
-
     return AsyncTokenBucket(connection=connection, **asdict(config))
 
 

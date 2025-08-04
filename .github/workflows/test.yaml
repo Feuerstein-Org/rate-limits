@@ -7,24 +7,27 @@ on:
       - main
 
 env:
-  PYTHON_VERSION: "3.11.x"
+  PYTHON_VERSION: "3.11"
+  MISE_OVERRIDE_CONFIG_FILENAMES: "mise.ci.toml"
 
 jobs:
   linting:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4.2.2
-      - uses: actions/setup-python@v5.6.0
+      - uses: jdx/mise-action@v2
         with:
-          python-version: "${{ env.PYTHON_VERSION }}"
-      - run: pip install pre-commit
-      - uses: actions/cache@v4.2.3
-        id: pre-commit-cache
-        with:
-          path: ~/.cache/pre-commit
-          key: key-0
-      - run: pip install printf-log-formatter black isort
-      - run: pre-commit run --all-files
+          cache: true
+          install: false # Otherwise mise will install Redis
+      - name: Install dependencies
+        # This will essentially disable installation of Redis
+        run: |
+          mise settings auto_install_disable_tools="redis-cli"
+          mise run install-uv-ci
+      - name: Lint
+        run: mise run lint-ci
+      - name: Pre-commit
+        run: mise run pre-commit-ci
 
   test:
     runs-on: ubuntu-latest
@@ -34,39 +37,18 @@ jobs:
         python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4.2.2
-      - uses: actions/setup-python@v5.6.0
+      - uses: jdx/mise-action@v2
         with:
-          python-version: "${{ matrix.python-version }}"
-      - uses: actions/cache@v4.2.3
-        id: poetry-cache
-        with:
-          path: ~/.local
-          key: ${{ matrix.python-version }}-0
-      - uses: snok/install-poetry@v1.4.1
-        with:
-          virtualenvs-create: false
-          version: latest
-      - uses: actions/cache@v4.2.3
-        id: cache-venv
-        with:
-          path: .venv
-          key: ${{ hashFiles('**/poetry.lock') }}-${{ matrix.python-version }}-0
-      - run: |
-          python -m venv .venv
-          source .venv/bin/activate
-          pip install -U pip
-          poetry install --no-interaction --no-root --with=development
-        if: steps.cache-venv.outputs.cache-hit != 'true'
-      - uses: awalsh128/cache-apt-pkgs-action@v1.4.3
-        with:
-          packages: redis-tools
-          version: 0
+          cache: true
+          config_file: mise.ci.toml
+      - name: Install dependencies
+        run: mise run install-uv-ci
+      - name: Override Python version
+        run: mise use python@${{ matrix.python-version }}
+      - name: Setup test environment
+        run: mise run test-setup-ci
       - name: Run tests
-        run: |
-          docker compose up -d
-          chmod +x ./setup-cluster.sh
-          ./setup-cluster.sh
-          source .venv/bin/activate
-          coverage run -m pytest tests
-          coverage xml
-          coverage report
+        run: mise run test-ci
+      - name: Cleanup test environment
+        if: always()
+        run: mise run test-teardown-ci

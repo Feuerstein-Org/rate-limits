@@ -1,4 +1,4 @@
-# Redis rate limiters
+# Python Redis Limiters
 
 A library which regulates traffic, with respect to concurrency or time.
 It implements sync and async context managers for a [semaphore](#semaphore)- and a [token bucket](#token-bucket)-implementation.
@@ -11,10 +11,24 @@ also reducing the number of round-trips required.
 Use is supported for standalone redis instances, and clusters.
 We currently only support Python 3.11, but can add support for older versions if needed.
 
+## NOTE:
+This project was initially forked from [redis-rate-limiters](https://github.com/otovo/redis-rate-limiters) and was mainly created by Sondre Lillebø Gundersen [link](https://github.com/sondrelg).
+
+The old project is no longer being worked on and only supported PydanticV1. I plan to add more functionality as well as maintain this fork in the future. It will be published under py-redis-limiters.
+
+Currently I:
+ - migrated to PydanticV2
+ - migrated from poetry to uv
+ - migrated from just to mise en place
+ - changed the pre-commit & build process a bit (e.g. remove black/isort in favor of ruff)
+ - tidied up a few types as well as add types to tests
+ - added a few more tests (I plan to add more)
+ - added default values to the rate limits.
+
 ## Installation
 
 ```
-pip install redis-rate-limiters
+pip install py-redis-limiters
 ```
 
 ## Usage
@@ -170,8 +184,8 @@ def fetch_foo(id: UUID) -> Foo:
 
 Contributions are very welcome. Here's how to get started:
 
-- Set up a Python 3.11+ venv, and `pip install poetry`
-- Install dependencies with `poetry install`
+- Clone the repo
+- Install [uv](https://docs.astral.sh/uv/getting-started/installation/)
 - Run `pre-commit install` to set up pre-commit
 - Install [just](https://just.systems/man/en/) and run `just setup`
   If you prefer not to install just, just take a look at the justfile and
@@ -184,12 +198,12 @@ Contributions are very welcome. Here's how to get started:
 To publish a new version:
 
 - Update the package version in the `pyproject.toml`
-- Open [Github releases](https://github.com/otovo/redis-rate-limiters/releases)
+- Open [Github releases](https://github.com/Feuerstein-Org/py-redis-limiters/releases)
 - Press "Draft a new release"
-- Set a tag matching the new version (for example, `v0.4.2`)
+- Set a tag matching the new version (for example, `v0.1.0`)
 - Set the title matching the tag
 - Add some release notes, explaining what has changed
 - Publish
 
-Once the release is published, our [publish workflow](https://github.com/otovo/redis-rate-limiters/blob/main/.github/workflows/publish.yaml) should be triggered
+Once the release is published, our [publish workflow](https://github.com/Feuerstein-Org/py-redis-limiters/blob/main/.github/workflows/publish.yaml) should be triggered
 to push the new version to PyPI.

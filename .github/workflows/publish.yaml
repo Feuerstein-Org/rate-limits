@@ -1,4 +1,4 @@
-name: publish package
+name: publish
 
 on:
   release:
@@ -7,10 +7,16 @@ on:
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
+    environment:
+      name: pypi
+    permissions:
+      id-token: write
     steps:
       - uses: actions/checkout@v4.2.2
       - uses: actions/setup-python@v5.6.0
         with:
           python-version: "3.11"
-      - uses: snok/install-poetry@v1.4.1
-      - run: poetry publish --build --no-interaction --username __token__ --password ${{ secrets.PYPI_TOKEN }}
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv publish

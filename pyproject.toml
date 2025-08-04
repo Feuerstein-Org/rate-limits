@@ -1,12 +1,13 @@
 [project]
-name = "redis-rate-limiters"
-version = "0.4.5"
-description = "Distributed rate limiters"
-authors = [{ name = "Sondre Lillebø Gundersen", email = "sondrelg@live.no" }]
+name = "redis-limiters"
+version = "0.5.0"
+description = "Python rate limiters backed by Redis"
+authors = [{ name = "Emil Aliyev", email = "ea01052002@gmail.com" }, { name = "Sondre Lillebø Gundersen", email = "sondrelg@live.no" }]
 requires-python = ">=3.11"
 readme = "README.md"
-license = "BSD-4-Clause"
+license = "MIT"
 keywords = [
+    "redis",
     "async",
     "sync",
     "rate",
@@ -14,10 +15,9 @@ keywords = [
     "limiters",
 ]
 classifiers = [
-    "Development Status :: 4 - Beta",
     "Environment :: Web Environment",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: BSD License",
+    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3.11",
@@ -34,8 +34,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/otovo/redis-rate-limiters"
-Repository = "https://github.com/otovo/redis-rate-limiters"
+Homepage = "https://github.com/Feuerstein-Org/redis-limiters"
+Repository = "https://github.com/Feuerstein-Org/redis-limiters"
 
 [dependency-groups]
 dev = [
@@ -45,20 +45,15 @@ dev = [
     "pytest",
     "pytest-asyncio",
     "types-redis",
-    "pyright",
+    "ruff",
+    "pyright[nodejs]",
     "pytest-randomly",
     "pytest-socket",
 ]
 
-[tool.hatch.build.targets.sdist]
-include = ["limiters"]
-
-[tool.hatch.build.targets.wheel]
-include = ["limiters"]
-
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["uv_build>=0.8.5,<0.9.0"]
+build-backend = "uv_build"
 
 [tool.pytest.ini_options]
 addopts = "--allow-hosts=127.0.0.1,::1,10.5.0.2,10.5.0.3,10.5.0.4"
@@ -79,9 +74,9 @@ exclude_lines = [
 [tool.ruff]
 line-length = 120
 target-version = "py311"
-lint.select = ["E", "F", "W", "C90", "C4", "I", "T20", "PT", "SIM", "RUF"]
-lint.ignore = []
-lint.fixable = ["A", "B", "C", "D", "E", "F", "G", "I", "N", "Q", "S", "T", "W", "ANN", "ARG", "BLE", "COM", "DJ", "DTZ", "EM", "ERA", "EXE", "FBT", "ICN", "INP", "ISC", "NPY", "PD", "PGH", "PIE", "PL", "PT", "PTH", "PYI", "RET", "RSE", "RUF", "SIM", "SLF", "TCH", "TID", "TRY", "UP", "YTT"]
+lint.select = ["A", "ANN", "B", "C", "F", "W", "C90", "C4", "I", "T20", "PT", "PLE", "PLR", "PLW", "SIM", "RUF", "RET"]
+lint.ignore = ["ANN401", "PLR1711"]
+lint.fixable = ["A", "B", "C", "D", "E", "F", "G", "I", "N", "Q", "S", "T", "W", "ANN", "ARG", "BLE", "COM", "DJ", "DTZ", "EM", "ERA", "EXE", "FBT", "ICN", "INP", "ISC", "NPY", "PD", "PGH", "PIE", "PL", "PLE", "PT", "PTH", "PYI", "RET", "RSE", "RUF", "SIM", "SLF", "TCH", "TID", "TRY", "UP", "YTT"]
 lint.unfixable = []
 exclude = [
     ".bzr",
@@ -111,22 +106,6 @@ exclude = [
 fixture-parentheses=false
 mark-parentheses=false
 parametrize-names-type="csv"
-
-[tool.mypy]
-python_version = 3.11
-disallow_untyped_defs = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-warn_unused_configs = true
-warn_no_return = true
-show_traceback = true
-strict_optional = true
-warn_return_any = true
-check_untyped_defs = true
-plugins = ["pydantic.mypy"]
-
-[tool."pydantic-mypy"]
-warn_untyped_fields = true
 
 [tool.pyright]
 pythonVersion = "3.11"

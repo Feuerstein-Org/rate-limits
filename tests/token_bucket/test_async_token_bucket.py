@@ -3,13 +3,14 @@ import logging
 import re
 from datetime import datetime
 from functools import partial
+from typing import Any
 
 import pytest
 from pydantic import ValidationError
 from redis.asyncio import Redis
 from redis.asyncio.cluster import RedisCluster
 
-from limiters import AsyncTokenBucket, MaxSleepExceededError
+from redis_limiters import AsyncTokenBucket, MaxSleepExceededError
 from tests.conftest import (
     ASYNC_CONNECTIONS,
     STANDALONE_ASYNC_CONNECTION,
@@ -51,7 +52,7 @@ async def test_token_bucket_runtimes(
     before = datetime.now()
     await asyncio.gather(*tasks)
     elapsed = delta_to_seconds(datetime.now() - before)
-    assert abs(timeout - elapsed) <= 0.01
+    assert abs(timeout - elapsed) <= 0.01  # noqa: PLR2004
 
 
 @pytest.mark.parametrize("connection_factory", [STANDALONE_ASYNC_CONNECTION])
@@ -107,7 +108,7 @@ async def test_high_concurrency_token_acquisition(
     elapsed = delta_to_seconds(datetime.now() - before)
 
     # Should take roughly (100-5)/5 * 0.1 = ~1.9 seconds
-    assert elapsed >= 1.8
+    assert elapsed >= 1.8  # noqa: PLR2004
 
 
 @pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
@@ -146,7 +147,9 @@ def test_repr(connection_factory: ConnectionFactory) -> None:
         ({"max_sleep": None}, ValidationError),
     ],
 )
-def test_init_types(connection_factory: ConnectionFactory, config_params, error) -> None:  # type: ignore[no-untyped-def]
+def test_init_types(
+    connection_factory: ConnectionFactory, config_params: dict[str, Any], error: type[ValidationError] | None
+) -> None:
     if error:
         with pytest.raises(error):
             async_tokenbucket_factory(

@@ -1,7 +1,4 @@
-version: '3'
-
 services:
-
   # Standalone instance
 
   redis-standalone:
@@ -11,7 +8,6 @@ services:
       - '127.0.0.1:6378:6379'
 
   # Cluster
-
   redis-leader-1:
     image: redis:latest
     restart: always

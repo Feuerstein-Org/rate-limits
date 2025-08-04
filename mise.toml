@@ -1,0 +1,66 @@
+[tools]
+python = "3.11"
+uv = "latest"
+docker-cli = "latest"
+redis-cli = "latest"
+act = "latest"
+
+[tasks.install]
+description = "Install all dependencies including dev dependencies"
+run = [
+    "uv sync --all-extras --dev",
+    "uv run pre-commit install"
+]
+
+[tasks.test-setup]
+description = "Setup testing environment with Docker"
+run = [
+    "docker compose up -d",
+    "./setup-cluster.sh"
+]
+
+[tasks.test-teardown]
+description = "Teardown testing environment"
+run = "docker compose down -v"
+
+[tasks.pre-commit]
+description = "Run pre-commit hooks on all files"
+depends = ["lint-fix"]
+run = "uv run pre-commit run --all-files"
+
+[tasks.test]
+description = "Run tests with coverage & pre-commit"
+depends = ["pre-commit"]
+run = [
+    "uv run coverage run -m pytest",
+    "uv run coverage report --fail-under=80"
+]
+
+[tasks.lint-fix]
+description = "Fix all auto-fixable linting issues"
+run = [
+    "uv run ruff check --fix .",
+    "uv run ruff format .",
+]
+
+[tasks.lint]
+description = "Show all issues detected by linter"
+run = [
+    "uv run ruff check .",
+    "uv run ruff format . --check",
+]
+
+[tasks.test-full]
+description = "Run full test suite with setup and teardown"
+run = '''
+    trap 'mise run test-teardown' EXIT
+    set -e
+    mise run test-setup
+    mise run test
+'''
+
+[tasks.act]
+description = "Test github actions workflow, pass python version with 'mise run act 3.13'"
+run = [
+    "act --matrix python-version:${1:-3.11} --verbose"
+]

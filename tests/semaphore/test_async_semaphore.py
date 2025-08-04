@@ -3,13 +3,14 @@ import logging
 import re
 from datetime import datetime
 from functools import partial
+from typing import Any
 
 import pytest
 from pydantic import ValidationError
 from redis.asyncio.client import Monitor, Redis
 from redis.asyncio.cluster import RedisCluster
 
-from limiters import MaxSleepExceededError
+from redis_limiters import MaxSleepExceededError
 from tests.conftest import (
     ASYNC_CONNECTIONS,
     STANDALONE_ASYNC_CONNECTION,
@@ -41,8 +42,7 @@ async def test_semaphore_runtimes(
     sleep: float,
     timeout: float,
 ) -> None:
-    """
-    Make sure that the runtime of multiple Semaphore instances conform to our expectations.
+    """Make sure that the runtime of multiple Semaphore instances conform to our expectations.
 
     The runtime should never fall below the expected lower bound. If we run 6 instances for
     a Semaphore with a capacity of 5, where each instance sleeps 1 second, then it should
@@ -110,7 +110,9 @@ def test_repr(connection_factory: ConnectionFactory) -> None:
         ({"max_sleep": None}, ValidationError),
     ],
 )
-def test_init_types(connection_factory: ConnectionFactory, config_params, error) -> None:  # type: ignore[no-untyped-def]
+def test_init_types(
+    connection_factory: ConnectionFactory, config_params: dict[str, Any], error: type[ValidationError] | None
+) -> None:
     if error:
         with pytest.raises(error):
             async_semaphore_factory(connection=connection_factory(), config=SemaphoreConfig(**config_params))

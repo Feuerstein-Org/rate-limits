@@ -1,0 +1,40 @@
+# These tasks should only be used by GH actions
+# The idea is that we don't clutter mise's autocomplete
+
+[tools]
+python = "3.11"
+uv = "latest"
+redis-cli = "latest"
+
+[tasks.install-uv-ci]
+description = "Install dependencies for CI"
+run = "uv sync --all-extras --dev"
+
+[tasks.lint-ci]
+description = "Show all issues detected by linter (CI only)"
+run = [
+    "uv run ruff check . --output-format=github",
+    "uv run ruff format . --check --diff",
+]
+
+[tasks.pre-commit-ci]
+description = "Run pre-commit hooks without lint-fix dependency (CI only)"
+run = "uv run pre-commit run --all-files"
+
+[tasks.test-setup-ci]
+description = "Setup testing environment with Docker"
+run = [
+    "docker compose up -d",
+    "./setup-cluster.sh"
+]
+
+[tasks.test-ci]
+description = "Run tests without pre-commit dependency (CI only)"
+run = [
+    "uv run coverage run -m pytest",
+    "uv run coverage report --fail-under=80"
+]
+
+[tasks.test-teardown-ci]
+description = "Teardown testing environment"
+run = "docker compose down -v"

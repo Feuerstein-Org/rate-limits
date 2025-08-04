@@ -1,24 +1,31 @@
-default_stages: [pre-commit, pre-push]
+default_stages: [pre-commit]
 repos:
   - repo: local
     hooks:
       - id: printf-log-formatter
         name: printf-log-formatter
-        entry: printf-log-formatter
+        entry: uv run printf-log-formatter
         language: system
         types: [ python ]
         args:
           - --log-level=debug
 
-      - id: mypy
-        name: mypy
-        entry: uv run mypy
-        language: system
-        types: [ python ]
-
       - id: pyright
         name: pyright
         entry: uv run pyright
+        language: system
+        types: [ python ]
+
+      - id: ruff-check
+        name: ruff-check
+        entry: uv run ruff check
+        language: system
+        types: [ python ]
+        args: [ --fix ]
+
+      - id: ruff-format
+        name: ruff-format
+        entry: uv run ruff format
         language: system
         types: [ python ]
 
@@ -39,12 +46,3 @@ repos:
       - id: pyupgrade
         types: [ python ]
         args: [ "--py313-plus"]
-
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.12.7
-    hooks:
-      # Run the linter.
-      - id: ruff-check
-        args: [ --fix ]
-      # Run the formatter.
-      - id: ruff-format

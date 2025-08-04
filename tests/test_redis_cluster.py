@@ -7,7 +7,7 @@ from redis.asyncio.cluster import RedisCluster as AsyncRedisCluster
 from redis.client import Redis as SyncRedis
 from redis.cluster import RedisCluster as SyncRedisCluster
 
-from limiters import AsyncSemaphore, AsyncTokenBucket, SyncSemaphore, SyncTokenBucket
+from redis_limiters import AsyncSemaphore, AsyncTokenBucket, SyncSemaphore, SyncTokenBucket
 
 
 @pytest.mark.parametrize(

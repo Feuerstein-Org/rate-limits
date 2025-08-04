@@ -8,7 +8,7 @@ import pytest
 from redis import Redis
 from redis.cluster import RedisCluster
 
-from limiters import MaxSleepExceededError
+from redis_limiters import MaxSleepExceededError
 from tests.conftest import SYNC_CONNECTIONS, SemaphoreConfig, sync_semaphore_factory
 
 logger = logging.getLogger(__name__)
