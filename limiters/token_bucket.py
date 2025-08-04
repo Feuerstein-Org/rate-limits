@@ -3,7 +3,7 @@ import logging
 import time
 from datetime import datetime
 from types import TracebackType
-from typing import ClassVar
+from typing import Annotated, ClassVar, cast
 
 from pydantic import BaseModel, Field
 
@@ -11,6 +11,9 @@ from limiters import MaxSleepExceededError
 from limiters.base import AsyncLuaScriptBase, SyncLuaScriptBase
 
 logger = logging.getLogger(__name__)
+
+PositiveFloat = Annotated[float, Field(gt=0)]
+NonNegativeFloat = Annotated[float, Field(ge=0)]
 
 
 def create_redis_time_tuple() -> tuple[int, int]:
@@ -28,10 +31,10 @@ def create_redis_time_tuple() -> tuple[int, int]:
 
 class TokenBucketBase(BaseModel):
     name: str
-    capacity: int = Field(gt=0)
-    refill_frequency: float = Field(gt=0)
-    refill_amount: int = Field(gt=0)
-    max_sleep: float = Field(ge=0, default=0.0)
+    capacity: PositiveFloat
+    refill_frequency: PositiveFloat
+    refill_amount: PositiveFloat
+    max_sleep: NonNegativeFloat = 0.0
 
     def parse_timestamp(self, timestamp: int) -> float:
         # Parse to datetime
@@ -50,8 +53,8 @@ class TokenBucketBase(BaseModel):
         # Raise an error if we exceed the maximum sleep setting
         if self.max_sleep != 0.0 and sleep_time > self.max_sleep:
             raise MaxSleepExceededError(
-                f'Scheduled to sleep `{sleep_time}` seconds. '
-                f'This exceeds the maximum accepted sleep time of `{self.max_sleep}` seconds for {self.name}.'
+                f"Scheduled to sleep `{sleep_time}` seconds. "
+                f"This exceeds the maximum accepted sleep time of `{self.max_sleep}` seconds for {self.name}."
             )
 
         logger.info('Sleeping %s seconds (%s)', sleep_time, self.name)
@@ -59,10 +62,10 @@ class TokenBucketBase(BaseModel):
 
     @property
     def key(self) -> str:
-        return f'{{limiter}}:token-bucket:{self.name}'
+        return f"{{limiter}}:token-bucket:{self.name}"
 
     def __str__(self) -> str:
-        return f'Token bucket instance for queue {self.key}'
+        return f"Token bucket instance for queue {self.key}"
 
 
 class SyncTokenBucket(TokenBucketBase, SyncLuaScriptBase):
@@ -74,11 +77,14 @@ class SyncTokenBucket(TokenBucketBase, SyncLuaScriptBase):
         when to wake up, then sleep up until that point in time.
         """
 
-        # Retrieve timestamp for when to wake up from Redis
+        # Retrieve timestamp for when to wake up from Redis Lua script
         seconds, microseconds = create_redis_time_tuple()
-        timestamp: int = self.script(
-            keys=[self.key],
-            args=[self.capacity, self.refill_amount, self.refill_frequency, seconds, microseconds],
+        timestamp: int = cast(
+            int,
+            self.script(
+                keys=[self.key],
+                args=[self.capacity, self.refill_amount, self.refill_frequency, seconds, microseconds],
+            ),
         )
 
         # Estimate sleep time
@@ -107,11 +113,14 @@ class AsyncTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
         when to wake up, then sleep up until that point in time.
         """
 
-        # Retrieve timestamp for when to wake up from Redis
+        # Retrieve timestamp for when to wake up from Redis Lua script
         seconds, microseconds = create_redis_time_tuple()
-        timestamp = await self.script(
-            keys=[self.key],
-            args=[self.capacity, self.refill_amount, self.refill_frequency, seconds, microseconds],
+        timestamp: int = cast(
+            int,
+            await self.script(
+                keys=[self.key],
+                args=[self.capacity, self.refill_amount, self.refill_frequency, seconds, microseconds],
+            ),
         )
 
         # Estimate sleep time

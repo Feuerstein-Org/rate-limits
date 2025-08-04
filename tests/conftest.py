@@ -1,8 +1,10 @@
 import asyncio
 import logging
+from dataclasses import asdict, dataclass, field
+from datetime import timedelta
 from functools import partial
+from logging import Logger
 from pathlib import Path
-from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from redis.asyncio import Redis as AsyncRedis
@@ -12,12 +14,9 @@ from redis.cluster import RedisCluster as SyncRedisCluster
 
 from limiters import AsyncSemaphore, AsyncTokenBucket, SyncSemaphore, SyncTokenBucket
 
-if TYPE_CHECKING:
-    from datetime import timedelta
+logger: Logger = logging.getLogger(__name__)
 
-logger = logging.getLogger(__name__)
-
-REPO_ROOT = Path(__file__).parent.parent
+REPO_ROOT: Path = Path(__file__).parent.parent
 
 STANDALONE_URL = 'redis://127.0.0.1:6378'
 CLUSTER_URL = 'redis://127.0.0.1:6380'
@@ -27,11 +26,17 @@ CLUSTER_SYNC_CONNECTION = partial(SyncRedisCluster.from_url, CLUSTER_URL)
 STANDALONE_ASYNC_CONNECTION = partial(AsyncRedis.from_url, STANDALONE_URL)
 CLUSTER_ASYNC_CONNECTION = partial(AsyncRedisCluster.from_url, CLUSTER_URL)
 
-SYNC_CONNECTIONS = [STANDALONE_SYNC_CONNECTION, CLUSTER_SYNC_CONNECTION]
-ASYNC_CONNECTIONS = [STANDALONE_ASYNC_CONNECTION, CLUSTER_ASYNC_CONNECTION]
+SYNC_CONNECTIONS: list[partial[SyncRedis] | partial[SyncRedisCluster]] = [
+    STANDALONE_SYNC_CONNECTION,
+    CLUSTER_SYNC_CONNECTION,
+]
+ASYNC_CONNECTIONS: list[partial[AsyncRedis] | partial[AsyncRedisCluster]] = [
+    STANDALONE_ASYNC_CONNECTION,
+    CLUSTER_ASYNC_CONNECTION,
+]
 
 
-def delta_to_seconds(t: 'timedelta') -> float:
+def delta_to_seconds(t: timedelta) -> float:
     return t.seconds + t.microseconds / 1_000_000
 
 
@@ -40,33 +45,52 @@ async def run(pt: AsyncSemaphore | AsyncTokenBucket, sleep_duration: float) -> N
         await asyncio.sleep(sleep_duration)
 
 
-def get_tokenbucket_defaults():
-    return {
-        'name': uuid4().hex[:6],
-        'capacity': 1,
-        'refill_frequency': 1.0,
-        'refill_amount': 1,
-    }
+@dataclass
+class TokenBucketConfig:
+    name: str = field(default_factory=lambda: uuid4().hex[:6])
+    capacity: int = 1
+    refill_frequency: float = 1.0
+    refill_amount: int = 1
+    max_sleep: float = 0.0
 
 
-def sync_tokenbucket_factory(*, connection: SyncRedis | SyncRedisCluster, **kwargs) -> SyncTokenBucket:
-    return SyncTokenBucket(connection=connection, **(get_tokenbucket_defaults() | kwargs))
+def sync_tokenbucket_factory(
+    *, connection: SyncRedis | SyncRedisCluster, config: TokenBucketConfig | None = None
+) -> SyncTokenBucket:
+    if config is None:
+        config = TokenBucketConfig()
+
+    return SyncTokenBucket(connection=connection, **asdict(config))
 
 
-def async_tokenbucket_factory(*, connection: AsyncRedis | AsyncRedisCluster, **kwargs) -> AsyncTokenBucket:
-    return AsyncTokenBucket(connection=connection, **(get_tokenbucket_defaults() | kwargs))
+def async_tokenbucket_factory(
+    *, connection: AsyncRedis | AsyncRedisCluster, config: TokenBucketConfig | None = None
+) -> AsyncTokenBucket:
+    if config is None:
+        config = TokenBucketConfig()
+
+    return AsyncTokenBucket(connection=connection, **asdict(config))
 
 
-def get_semaphore_defaults():
-    return {
-        'name': uuid4().hex[:6],
-        'capacity': 1,
-    }
+@dataclass
+class SemaphoreConfig:
+    name: str = field(default_factory=lambda: uuid4().hex[:6])
+    capacity: int = 1
 
 
-def sync_semaphore_factory(*, connection: SyncRedis | SyncRedisCluster, **kwargs) -> SyncSemaphore:
-    return SyncSemaphore(connection=connection, **(get_semaphore_defaults() | kwargs))
+def sync_semaphore_factory(
+    *, connection: SyncRedis | SyncRedisCluster, config: SemaphoreConfig | None = None
+) -> SyncSemaphore:
+    if config is None:
+        config = SemaphoreConfig()
+
+    return SyncSemaphore(connection=connection, **asdict(config))
 
 
-def async_semaphore_factory(*, connection: AsyncRedis | AsyncRedisCluster, **kwargs) -> AsyncSemaphore:
-    return AsyncSemaphore(connection=connection, **(get_semaphore_defaults() | kwargs))
+def async_semaphore_factory(
+    *, connection: AsyncRedis | AsyncRedisCluster, config: SemaphoreConfig | None = None
+) -> AsyncSemaphore:
+    if config is None:
+        config = SemaphoreConfig()
+
+    return AsyncSemaphore(connection=connection, **asdict(config))
