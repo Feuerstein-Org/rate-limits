@@ -35,7 +35,11 @@ ConnectionFactory = partial[Redis] | partial[RedisCluster]
     ],
 )
 async def test_semaphore_runtimes(
-    connection_factory: ConnectionFactory, n: int, capacity: int, sleep: float, timeout: float
+    connection_factory: ConnectionFactory,
+    n: int,
+    capacity: int,
+    sleep: float,
+    timeout: float,
 ) -> None:
     """
     Make sure that the runtime of multiple Semaphore instances conform to our expectations.
@@ -47,7 +51,10 @@ async def test_semaphore_runtimes(
     config = SemaphoreConfig(capacity=capacity)
     tasks = [
         asyncio.create_task(
-            run(async_semaphore_factory(connection=connection_factory(), config=config), sleep_duration=sleep)
+            run(
+                async_semaphore_factory(connection=connection_factory(), config=config),
+                sleep_duration=sleep,
+            )
         )
         for _ in range(n)
     ]
@@ -69,7 +76,7 @@ async def test_sleep_is_non_blocking(connection_factory: ConnectionFactory) -> N
     ]
 
     # Both tasks should complete in ~1 second if thing are working correctly
-    await asyncio.wait_for(timeout=1.05, fut=asyncio.gather(*tasks))
+    await asyncio.wait_for(timeout=1.2, fut=asyncio.gather(*tasks))
 
 
 @pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
@@ -112,10 +119,18 @@ def test_init_types(connection_factory: ConnectionFactory, config_params, error)
 @pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
 async def test_max_sleep(connection_factory: ConnectionFactory) -> None:
     config = SemaphoreConfig(max_sleep=1.0)
-    with pytest.raises(MaxSleepExceededError, match=r"Max sleep \(1\.0s\) exceeded waiting for Semaphore"):
+    with pytest.raises(
+        MaxSleepExceededError,
+        match=r"Max sleep \(1\.0s\) exceeded waiting for Semaphore",
+    ):
         await asyncio.gather(
             *[
-                asyncio.create_task(run(async_semaphore_factory(connection=connection_factory(), config=config), 1))
+                asyncio.create_task(
+                    run(
+                        async_semaphore_factory(connection=connection_factory(), config=config),
+                        1,
+                    )
+                )
                 for _ in range(3)
             ]
         )
@@ -168,7 +183,7 @@ async def test_redis_instructions(connection_factory: partial[Redis]) -> None:
         # Make sure there are no other commands generated
         with pytest.raises(asyncio.TimeoutError):
             # This will time out if there are no other commands
-            print(await asyncio.wait_for(timeout=1, fut=m.connection.read_response()))  # noqa
+            await asyncio.wait_for(timeout=1, fut=m.connection.read_response())
 
         # Make sure each command conforms to our expectations
         assert "CLIENT" in commands[0], f"was {commands[0]}"

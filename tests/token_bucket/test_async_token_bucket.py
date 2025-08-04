@@ -60,7 +60,8 @@ async def test_sleep_is_non_blocking(connection_factory: partial[Redis]) -> None
 
     # Create a bucket with 2 slots available
     bucket: AsyncTokenBucket = async_tokenbucket_factory(
-        connection=connection_factory(), config=TokenBucketConfig(capacity=2, refill_amount=2)
+        connection=connection_factory(),
+        config=TokenBucketConfig(capacity=2, refill_amount=2),
     )
 
     tasks = [
@@ -90,10 +91,13 @@ async def test_sleep_is_non_blocking(connection_factory: partial[Redis]) -> None
 
 
 @pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
-async def test_high_concurrency_token_acquisition(connection_factory: ConnectionFactory) -> None:
+async def test_high_concurrency_token_acquisition(
+    connection_factory: ConnectionFactory,
+) -> None:
     """Test many concurrent tasks accessing the same bucket"""
     bucket = async_tokenbucket_factory(
-        connection=connection_factory(), config=TokenBucketConfig(capacity=5, refill_frequency=0.1, refill_amount=5)
+        connection=connection_factory(),
+        config=TokenBucketConfig(capacity=5, refill_frequency=0.1, refill_amount=5),
     )
 
     tasks = [asyncio.create_task(run(bucket, 0)) for _ in range(100)]
@@ -144,7 +148,10 @@ def test_repr(connection_factory: ConnectionFactory) -> None:
 def test_init_types(connection_factory: ConnectionFactory, config_params, error) -> None:  # type: ignore[no-untyped-def]
     if error:
         with pytest.raises(error):
-            async_tokenbucket_factory(connection=connection_factory(), config=TokenBucketConfig(**config_params))
+            async_tokenbucket_factory(
+                connection=connection_factory(),
+                config=TokenBucketConfig(**config_params),
+            )
     else:
         config = TokenBucketConfig(**config_params)
         async_tokenbucket_factory(connection=connection_factory(), config=config)
@@ -163,7 +170,12 @@ async def test_async_max_sleep(connection_factory: ConnectionFactory) -> None:
     with pytest.raises(MaxSleepExceededError, match=e):
         await asyncio.gather(
             *[
-                asyncio.create_task(run(async_tokenbucket_factory(connection=connection_factory(), config=config), 0))
+                asyncio.create_task(
+                    run(
+                        async_tokenbucket_factory(connection=connection_factory(), config=config),
+                        0,
+                    )
+                )
                 for _ in range(10)
             ]
         )

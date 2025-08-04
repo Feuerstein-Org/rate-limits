@@ -83,7 +83,13 @@ class SyncTokenBucket(TokenBucketBase, SyncLuaScriptBase):
             int,
             self.script(
                 keys=[self.key],
-                args=[self.capacity, self.refill_amount, self.refill_frequency, seconds, microseconds],
+                args=[
+                    self.capacity,
+                    self.refill_amount,
+                    self.refill_frequency,
+                    seconds,
+                    microseconds,
+                ],
             ),
         )
 
@@ -119,7 +125,13 @@ class AsyncTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
             int,
             await self.script(
                 keys=[self.key],
-                args=[self.capacity, self.refill_amount, self.refill_frequency, seconds, microseconds],
+                args=[
+                    self.capacity,
+                    self.refill_amount,
+                    self.refill_frequency,
+                    seconds,
+                    microseconds,
+                ],
             ),
         )
 

@@ -10,7 +10,7 @@ from redis.commands.core import AsyncScript, Script
 
 
 class SyncLuaScriptBase(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
     connection: SyncRedis | SyncRedisCluster
     script_name: ClassVar[str]
@@ -26,7 +26,7 @@ class SyncLuaScriptBase(BaseModel):
 
 
 class AsyncLuaScriptBase(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
     connection: AsyncRedis | AsyncRedisCluster
     script_name: ClassVar[str]

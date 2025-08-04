@@ -67,7 +67,9 @@ def sync_tokenbucket_factory(
 
 
 def async_tokenbucket_factory(
-    *, connection: AsyncRedis | AsyncRedisCluster, config: TokenBucketConfig | None = None
+    *,
+    connection: AsyncRedis | AsyncRedisCluster,
+    config: TokenBucketConfig | None = None,
 ) -> AsyncTokenBucket:
     if config is None:
         config = TokenBucketConfig()
