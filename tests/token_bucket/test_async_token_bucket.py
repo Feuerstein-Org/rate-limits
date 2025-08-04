@@ -35,12 +35,13 @@ ConnectionFactory = partial[Redis] | partial[RedisCluster]
 async def test_token_bucket_runtimes(
     connection_factory: ConnectionFactory, n: int, frequency: float, timeout: int
 ) -> None:
+    connection = connection_factory()
     config = TokenBucketConfig(refill_frequency=frequency)
     # Ensure n tasks never complete in less than n/(refill_frequency * refill_amount)
     tasks = [
         asyncio.create_task(
             run(
-                async_tokenbucket_factory(connection=connection_factory(), config=config),
+                async_tokenbucket_factory(connection=connection, config=config),
                 sleep_duration=0,
             )
         )
@@ -165,6 +166,7 @@ async def test_async_max_sleep(connection_factory: ConnectionFactory) -> None:
         r" seconds."
     )
     # This will cause the same name (key) be used for different buckets
+    connection = connection_factory()
     config = TokenBucketConfig(max_sleep=1)
 
     with pytest.raises(MaxSleepExceededError, match=e):
@@ -172,7 +174,7 @@ async def test_async_max_sleep(connection_factory: ConnectionFactory) -> None:
             *[
                 asyncio.create_task(
                     run(
-                        async_tokenbucket_factory(connection=connection_factory(), config=config),
+                        async_tokenbucket_factory(connection=connection, config=config),
                         0,
                     )
                 )

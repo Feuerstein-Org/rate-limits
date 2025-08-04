@@ -48,11 +48,12 @@ async def test_semaphore_runtimes(
     a Semaphore with a capacity of 5, where each instance sleeps 1 second, then it should
     always take 1 >= seconds to run those.
     """
+    connection = connection_factory()
     config = SemaphoreConfig(capacity=capacity)
     tasks = [
         asyncio.create_task(
             run(
-                async_semaphore_factory(connection=connection_factory(), config=config),
+                async_semaphore_factory(connection=connection, config=config),
                 sleep_duration=sleep,
             )
         )
@@ -65,18 +66,20 @@ async def test_semaphore_runtimes(
 
 @pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
 async def test_sleep_is_non_blocking(connection_factory: ConnectionFactory) -> None:
+    connection = connection_factory()
+
     async def _sleep(duration: float) -> None:
         await asyncio.sleep(duration)
 
     tasks = [
-        # Create task for semaphore to sleep 1 second
-        asyncio.create_task(run(async_semaphore_factory(connection=connection_factory()), 1)),
+        # Create task to acquire a semaphore - should take less than 1 second
+        asyncio.create_task(run(async_semaphore_factory(connection=connection), 0)),
         # And create another task to normal asyncio sleep for 1 second
         asyncio.create_task(_sleep(1)),
     ]
 
-    # Both tasks should complete in ~1 second if thing are working correctly
-    await asyncio.wait_for(timeout=1.2, fut=asyncio.gather(*tasks))
+    # Both tasks should complete in ~1 second if things are working correctly
+    await asyncio.wait_for(timeout=1.05, fut=asyncio.gather(*tasks))
 
 
 @pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
