@@ -121,12 +121,11 @@ mark-parentheses=false
 parametrize-names-type="csv"
 
 [tool.mypy]
-python_version = 3.11
-strict = true
+python_version = 3.13
 warn_redundant_casts = true
 warn_unused_ignores = true
 warn_unused_configs = true
-warn_no_return = false
+warn_no_return = true
 show_traceback = true
 plugins = ["pydantic.mypy"]
 
