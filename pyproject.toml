@@ -86,11 +86,11 @@ exclude_lines = [
 
 [tool.ruff]
 line-length = 120
-target-version = "py311"
-select = ["E", "F", "W", "C90", "C4", "T20", "PT", "SIM", "RUF"]
-ignore = []
-fixable = ["A", "B", "C", "D", "E", "F", "G", "I", "N", "Q", "S", "T", "W", "ANN", "ARG", "BLE", "COM", "DJ", "DTZ", "EM", "ERA", "EXE", "FBT", "ICN", "INP", "ISC", "NPY", "PD", "PGH", "PIE", "PL", "PT", "PTH", "PYI", "RET", "RSE", "RUF", "SIM", "SLF", "TCH", "TID", "TRY", "UP", "YTT"]
-unfixable = []
+target-version = "py313"
+lint.select = ["E", "F", "W", "C90", "C4", "T20", "PT", "SIM", "RUF"]
+lint.ignore = []
+lint.fixable = ["A", "B", "C", "D", "E", "F", "G", "I", "N", "Q", "S", "T", "W", "ANN", "ARG", "BLE", "COM", "DJ", "DTZ", "EM", "ERA", "EXE", "FBT", "ICN", "INP", "ISC", "NPY", "PD", "PGH", "PIE", "PL", "PT", "PTH", "PYI", "RET", "RSE", "RUF", "SIM", "SLF", "TCH", "TID", "TRY", "UP", "YTT"]
+lint.unfixable = []
 exclude = [
     ".bzr",
     ".direnv",
@@ -115,19 +115,28 @@ exclude = [
     "venv",
 ]
 
-[tool.ruff.flake8-pytest-style]
+[tool.ruff.lint.flake8-pytest-style]
 fixture-parentheses=false
 mark-parentheses=false
 parametrize-names-type="csv"
 
 [tool.mypy]
 python_version = 3.13
+disallow_untyped_defs = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 warn_unused_configs = true
 warn_no_return = true
 show_traceback = true
+strict_optional = true
+warn_return_any = true
+check_untyped_defs = true
 plugins = ["pydantic.mypy"]
 
 [tool."pydantic-mypy"]
 warn_untyped_fields = true
+
+[tool.pyright]
+pythonVersion = "3.13"
+pythonPlatform = "Linux"
+typeCheckingMode = "standard"
