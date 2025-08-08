@@ -1,5 +1,5 @@
 [tools]
-python = "3.11"
+python = "3.13"
 uv = "latest"
 docker-cli = "latest"
 redis-cli = "latest"
@@ -62,5 +62,5 @@ run = '''
 [tasks.act]
 description = "Test github actions workflow, pass python version with 'mise run act 3.13'"
 run = [
-    "act --matrix python-version:${1:-3.11} --verbose"
+    "act --matrix python-version:${1:-3.13}"
 ]

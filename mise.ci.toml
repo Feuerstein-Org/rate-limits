@@ -2,9 +2,8 @@
 # The idea is that we don't clutter mise's autocomplete
 
 [tools]
-python = "3.11"
+python = "3.13"
 uv = "latest"
-redis-cli = "latest"
 
 [tasks.install-uv-ci]
 description = "Install dependencies for CI"

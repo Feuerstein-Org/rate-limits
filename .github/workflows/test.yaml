@@ -7,7 +7,6 @@ on:
       - main
 
 env:
-  PYTHON_VERSION: "3.11"
   MISE_OVERRIDE_CONFIG_FILENAMES: "mise.ci.toml"
 
 jobs:
@@ -18,11 +17,8 @@ jobs:
       - uses: jdx/mise-action@v2
         with:
           cache: true
-          install: false # Otherwise mise will install Redis
       - name: Install dependencies
-        # This will essentially disable installation of Redis
         run: |
-          mise settings auto_install_disable_tools="redis-cli"
           mise run install-uv-ci
       - name: Lint
         run: mise run lint-ci
@@ -40,9 +36,12 @@ jobs:
       - uses: jdx/mise-action@v2
         with:
           cache: true
-          config_file: mise.ci.toml
       - name: Install dependencies
-        run: mise run install-uv-ci
+        run: |
+          mise install redis-cli
+          mise use redis-cli
+          mise run install-uv-ci
+
       - name: Override Python version
         run: mise use python@${{ matrix.python-version }}
       - name: Setup test environment
