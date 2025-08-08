@@ -3,6 +3,8 @@
 .env
 .idea
 .coverage
+.vscode
+.DS_Store
 coverage.xml
 
 # Byte-compiled / optimized / DLL files
@@ -131,7 +133,5 @@ dmypy.json
 # Pyre type checker
 .pyre/
 *.iml
-.vscode
-.DS_Store
 
 .ruff_cache/
