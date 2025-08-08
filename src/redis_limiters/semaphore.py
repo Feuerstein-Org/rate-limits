@@ -18,9 +18,9 @@ NonNegativeFloat = Annotated[float, Field(ge=0)]
 
 class SemaphoreBase(BaseModel):
     name: str
-    capacity: PositiveInt = 1
+    capacity: PositiveInt = 5
     expiry: PositiveInt = 30
-    max_sleep: NonNegativeFloat = 0.0
+    max_sleep: NonNegativeFloat = 30
 
     @property
     def key(self) -> str:

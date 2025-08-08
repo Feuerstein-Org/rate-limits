@@ -51,7 +51,7 @@ from redis.asyncio import Redis
 
 from limiters import AsyncSemaphore
 
-
+# Every property besides name has a default like below
 limiter = AsyncSemaphore(
     name="foo",    # name of the resource you are limiting traffic for
     capacity=5,    # allow 5 concurrent requests
@@ -111,13 +111,13 @@ from redis.asyncio import Redis
 
 from limiters import AsyncTokenBucket
 
-
+# Every property besides name has a default like below
 limiter = AsyncTokenBucket(
     name="foo",          # name of the resource you are limiting traffic for
     capacity=5,          # hold up to 5 tokens
     refill_frequency=1,  # add tokens every second
     refill_amount=1,     # add 1 token when refilling
-    max_sleep=30,        # raise an error there are no free tokens for 30 seconds
+    max_sleep=0,         # raise an error there are no free tokens for X seconds, 0 never expires
     connection=Redis.from_url("redis://localhost:6379"),
 )
 
@@ -146,7 +146,7 @@ limiter = SyncTokenBucket(
     capacity=5,
     refill_frequency=1,
     refill_amount=1,
-    max_sleep=30,
+    max_sleep=0,
     connection=Redis.from_url("redis://localhost:6379"),
 )
 

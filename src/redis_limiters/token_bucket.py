@@ -30,7 +30,7 @@ def create_redis_time_tuple() -> tuple[int, int]:
 
 class TokenBucketBase(BaseModel):
     name: str
-    capacity: PositiveFloat = 1.0
+    capacity: PositiveFloat = 5.0
     refill_frequency: PositiveFloat = 1.0
     refill_amount: PositiveFloat = 1.0
     max_sleep: NonNegativeFloat = 0.0
