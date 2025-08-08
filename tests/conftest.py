@@ -48,10 +48,11 @@ async def run(pt: AsyncSemaphore | AsyncTokenBucket, sleep_duration: float) -> N
 @dataclass
 class TokenBucketConfig:
     name: str = field(default_factory=lambda: uuid4().hex[:6])
-    capacity: int = 1
+    capacity: float = 1.0
     refill_frequency: float = 1.0
-    refill_amount: int = 1
+    refill_amount: float = 1.0
     max_sleep: float = 0.0
+    initial_tokens: float | None = None
 
 
 def sync_tokenbucket_factory(*, connection: SyncRedis | SyncRedisCluster, config: TokenBucketConfig) -> SyncTokenBucket:
@@ -71,7 +72,7 @@ class SemaphoreConfig:
     name: str = field(default_factory=lambda: uuid4().hex[:6])
     capacity: int = 1
     expiry: int = 30
-    max_sleep: float = 0.0
+    max_sleep: float = 60.0
 
 
 def sync_semaphore_factory(

@@ -1,5 +1,5 @@
-import logging
 from datetime import datetime
+from logging import getLogger
 from types import TracebackType
 from typing import Annotated, ClassVar
 
@@ -10,7 +10,7 @@ from redis.asyncio.cluster import ClusterPipeline
 from redis_limiters import MaxSleepExceededError
 from redis_limiters.base import AsyncLuaScriptBase, SyncLuaScriptBase
 
-logger = logging.getLogger(__name__)
+logger = getLogger(__name__)
 
 PositiveInt = Annotated[int, Field(gt=0)]
 NonNegativeFloat = Annotated[float, Field(ge=0)]

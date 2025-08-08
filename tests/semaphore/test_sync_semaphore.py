@@ -17,7 +17,7 @@ ConnectionFactory = partial[Redis] | partial[RedisCluster]
 
 
 @pytest.mark.parametrize("connection_factory", SYNC_CONNECTIONS)
-async def test_sync_semaphore(connection_factory: ConnectionFactory) -> None:
+def test_sync_semaphore(connection_factory: ConnectionFactory) -> None:
     start = datetime.now()
     for _ in range(5):
         with sync_semaphore_factory(connection=connection_factory()):
@@ -33,7 +33,7 @@ def _run(connection: Redis | RedisCluster, config: SemaphoreConfig, sleep: float
 
 
 @pytest.mark.parametrize("connection_factory", SYNC_CONNECTIONS)
-async def test_sync_max_sleep(connection_factory: ConnectionFactory) -> None:
+def test_sync_max_sleep(connection_factory: ConnectionFactory) -> None:
     c = connection_factory()
     config = SemaphoreConfig(max_sleep=0.1, expiry=1)
     threading.Thread(target=_run, args=(c, config, 1)).start()
