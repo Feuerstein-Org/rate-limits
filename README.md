@@ -117,7 +117,7 @@ limiter = AsyncTokenBucket(
     capacity=5,          # hold up to 5 tokens
     refill_frequency=1,  # add tokens every second
     refill_amount=1,     # add 1 token when refilling
-    max_sleep=0,         # raise an error there are no free tokens for X seconds, 0 never expires
+    max_sleep=0,         # raise an error if there are no free tokens for X seconds, 0 never expires
     connection=Redis.from_url("redis://localhost:6379"),
 )
 
