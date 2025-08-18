@@ -1,17 +1,18 @@
 import asyncio
-import logging
-import time
 from datetime import datetime
+from logging import getLogger
+from time import sleep, time
 from types import TracebackType
-from typing import Annotated, ClassVar, cast
+from typing import Annotated, ClassVar, Self, cast
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from redis_limiters import MaxSleepExceededError
 from redis_limiters.base import AsyncLuaScriptBase, SyncLuaScriptBase
 
-logger = logging.getLogger(__name__)
+logger = getLogger(__name__)
 
+PositiveInt = Annotated[int, Field(gt=0)]
 PositiveFloat = Annotated[float, Field(gt=0)]
 NonNegativeFloat = Annotated[float, Field(ge=0)]
 
@@ -22,7 +23,7 @@ def create_redis_time_tuple() -> tuple[int, int]:
     This mimmicks the TIME command in Redis, which returns the current time in seconds and microseconds.
     See: https://redis.io/commands/time/
     """
-    now = time.time()
+    now = time()
     seconds_part = int(now)
     microseconds_part = int((now - seconds_part) * 1_000_000)
     return seconds_part, microseconds_part
@@ -32,8 +33,28 @@ class TokenBucketBase(BaseModel):
     name: str
     capacity: PositiveFloat = 5.0
     refill_frequency: PositiveFloat = 1.0
+    initial_tokens: NonNegativeFloat | None = None
     refill_amount: PositiveFloat = 1.0
     max_sleep: NonNegativeFloat = 0.0
+    expiry_seconds: PositiveInt = 30
+
+    @model_validator(mode="after")
+    def validate_token_bucket_config(self) -> Self:
+        # Set initial_tokens to capacity if not explicitly provided
+        if self.initial_tokens is None:
+            self.initial_tokens = self.capacity
+
+        if self.refill_amount > self.capacity:
+            raise ValueError(
+                f"Invalid token bucket '{self.name}': refill_amount ({self.refill_amount}) "
+                f"cannot exceed capacity ({self.capacity}). Reduce refill_amount or increase capacity."
+            )
+        if self.initial_tokens > self.capacity:
+            raise ValueError(
+                f"Invalid token bucket '{self.name}': initial_tokens ({self.initial_tokens}) "
+                f"cannot exceed capacity ({self.capacity}). Reduce initial_tokens or increase capacity."
+            )
+        return self
 
     def parse_timestamp(self, timestamp: int) -> float:
         # Parse to datetime
@@ -52,8 +73,9 @@ class TokenBucketBase(BaseModel):
         # Raise an error if we exceed the maximum sleep setting
         if self.max_sleep != 0.0 and sleep_time > self.max_sleep:
             raise MaxSleepExceededError(
-                f"Scheduled to sleep `{sleep_time}` seconds. "
-                f"This exceeds the maximum accepted sleep time of `{self.max_sleep}` seconds for {self.name}."
+                f"Rate limit exceeded for '{self.name}': "
+                f"would sleep {sleep_time:.2f}s but max_sleep is {self.max_sleep}s. "
+                f"Consider increasing capacity ({self.capacity}) or refill_rate ({self.refill_amount}/{self.refill_frequency}s)."
             )
 
         logger.info("Sleeping %s seconds (%s)", sleep_time, self.name)
@@ -83,9 +105,11 @@ class SyncTokenBucket(TokenBucketBase, SyncLuaScriptBase):
                 args=[
                     self.capacity,
                     self.refill_amount,
+                    self.initial_tokens or self.capacity,
                     self.refill_frequency,
                     seconds,
                     microseconds,
+                    self.expiry_seconds,
                 ],
             ),
         )
@@ -94,7 +118,7 @@ class SyncTokenBucket(TokenBucketBase, SyncLuaScriptBase):
         sleep_time = self.parse_timestamp(timestamp)
 
         # Sleep before returning
-        time.sleep(sleep_time)
+        sleep(sleep_time)
 
         return sleep_time
 
@@ -123,9 +147,11 @@ class AsyncTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
                 args=[
                     self.capacity,
                     self.refill_amount,
+                    self.initial_tokens or self.capacity,
                     self.refill_frequency,
                     seconds,
                     microseconds,
+                    self.expiry_seconds,
                 ],
             ),
         )

@@ -19,9 +19,11 @@ redis.replicate_commands()
 -- Arguments
 local capacity = tonumber(ARGV[1])
 local refill_amount = tonumber(ARGV[2])
-local time_between_slots = tonumber(ARGV[3]) * 1000 -- Convert to milliseconds
-local seconds = tonumber(ARGV[4])
-local microseconds = tonumber(ARGV[5])
+local initial_tokens = tonumber(ARGV[3])
+local time_between_slots = tonumber(ARGV[4]) * 1000 -- Convert to milliseconds
+local seconds = tonumber(ARGV[5])
+local microseconds = tonumber(ARGV[6])
+local expiry_seconds = tonumber(ARGV[7])
 
 -- Keys
 local data_key = KEYS[1]
@@ -30,7 +32,7 @@ local data_key = KEYS[1]
 local now = (tonumber(seconds) * 1000) + (tonumber(microseconds) / 1000)
 
 -- Default bucket values (used if no bucket exists yet)
-local tokens = capacity
+local tokens = math.min(initial_tokens, capacity)
 local slot = now
 
 -- Retrieve stored state, if any
@@ -45,8 +47,11 @@ if data then
     if slots_passed > 0 then
         -- Refill the tokens based on the number of slots passed, capped by capacity
         tokens = math.min(tokens + slots_passed * refill_amount, capacity)
-        -- Update the slot to this run, adding a penalty for execution time
-        slot = now + 20
+        -- Update the slot to this run
+        -- The previously added +20 ms execution penalty was removed as it was not needed
+        -- and all it did was add additional latency to all requests and in our case,
+        -- timing is handled gracefully with the condition used (wake_up_time < now)
+        slot = now
     end
 end
 
@@ -60,7 +65,7 @@ end
 tokens = tokens - 1
 
 -- Save updated state and set expiry
-redis.call('SETEX', data_key, 30, string.format('%d %d', slot, tokens))
+redis.call('SETEX', data_key, expiry_seconds, string.format('%d %d', slot, tokens))
 
 -- Return the slot when the next token will be available
 return slot

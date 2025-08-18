@@ -60,7 +60,7 @@ async def test_sleep_is_non_blocking(connection_factory: partial[Redis]) -> None
     async def _sleep(sleep_duration: float) -> None:
         await asyncio.sleep(sleep_duration)
 
-    # Create a bucket with 2 slots available
+    # Create a bucket with 2 slots available (initial_tokens will default to capacity=2)
     bucket: AsyncTokenBucket = async_tokenbucket_factory(
         connection=connection_factory(),
         config=TokenBucketConfig(capacity=2, refill_amount=2),
@@ -136,11 +136,14 @@ def test_repr(connection_factory: ConnectionFactory) -> None:
         ({"refill_frequency": "test"}, ValidationError),
         ({"refill_frequency": None}, ValidationError),
         ({"refill_frequency": -1}, ValidationError),
-        ({"refill_amount": 2}, None),
-        ({"refill_amount": 2.2}, None),
+        ({"refill_amount": 1}, None),
+        ({"refill_amount": 0.8}, None),
         ({"refill_amount": -1}, ValidationError),
         ({"refill_amount": "test"}, ValidationError),
         ({"refill_amount": None}, ValidationError),
+        ({"initial_tokens": 1, "capacity": 2}, None),
+        ({"refill_amount": 3, "capacity": 2}, ValidationError),
+        ({"initial_tokens": 3, "capacity": 2}, ValidationError),
         ({"max_sleep": 20}, None),
         ({"max_sleep": 0}, None),
         ({"max_sleep": "test"}, ValidationError),
@@ -164,15 +167,17 @@ def test_init_types(
 @pytest.mark.filterwarnings("ignore::RuntimeWarning")
 @pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
 async def test_async_max_sleep(connection_factory: ConnectionFactory) -> None:
-    e = (
-        r"Scheduled to sleep \`[0-9].[0-9]+\` seconds. This exceeds the maximum accepted sleep time of \`1\.0\`"
-        r" seconds."
-    )
     # This will cause the same name (key) be used for different buckets
     connection = connection_factory()
-    config = TokenBucketConfig(max_sleep=1)
+    config = TokenBucketConfig(max_sleep=1.0)
 
-    with pytest.raises(MaxSleepExceededError, match=e):
+    expected_msg = (
+        rf"^Rate limit exceeded for '{config.name}': would sleep "
+        rf"[0-9]+\.[0-9]{{2}}s but max_sleep is {config.max_sleep}s\. "
+        rf"Consider increasing capacity \({config.capacity}\) or "
+        rf"refill_rate \({config.refill_amount}/{config.refill_frequency}s\)\.$"
+    )
+    with pytest.raises(MaxSleepExceededError, match=expected_msg):
         await asyncio.gather(
             *[
                 asyncio.create_task(
@@ -184,3 +189,34 @@ async def test_async_max_sleep(connection_factory: ConnectionFactory) -> None:
                 for _ in range(10)
             ]
         )
+
+
+@pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
+@pytest.mark.parametrize(
+    "initial_tokens,expected_value,expected_requests",
+    [
+        (None, 5, 5),  # defaults to capacity
+        (2.0, 2.0, 2),  # explicit value
+    ],
+)
+async def test_initial_tokens(
+    connection_factory: ConnectionFactory, initial_tokens: float | None, expected_value: float, expected_requests: int
+) -> None:
+    """Test that initial_tokens defaults to capacity or uses explicit value and affects behavior."""
+    config = TokenBucketConfig(capacity=5, initial_tokens=initial_tokens)
+    bucket = async_tokenbucket_factory(connection=connection_factory(), config=config)
+
+    # Test the value is set correctly
+    assert bucket.initial_tokens == expected_value
+
+    # Test behavior: expected_requests immediate + 1 after refill = ~1 second total
+    start = datetime.now()
+
+    # Assuming the capacity is 5 and initial_tokens = capacity, we are testing that 5+1 (6) requests will complete within 1 second because it
+    # takes one second for an additional token to be issued.
+
+    tasks = [asyncio.create_task(run(bucket, 0)) for _ in range(expected_requests + 1)]
+    await asyncio.gather(*tasks)
+    elapsed = delta_to_seconds(datetime.now() - start)
+
+    assert 0.9 <= elapsed <= 1.1  # noqa: PLR2004

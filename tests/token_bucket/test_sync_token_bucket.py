@@ -15,9 +15,9 @@ ConnectionFactory = partial[Redis] | partial[RedisCluster]
 
 
 @pytest.mark.parametrize("connection_factory", SYNC_CONNECTIONS)
-async def test_sync_token_bucket(connection_factory: ConnectionFactory) -> None:
+def test_sync_token_bucket(connection_factory: ConnectionFactory) -> None:
     start = datetime.now()
-    config = TokenBucketConfig(refill_amount=2, refill_frequency=0.2)
+    config = TokenBucketConfig(capacity=1, refill_amount=1, refill_frequency=0.2)
     for _ in range(5):
         with sync_tokenbucket_factory(connection=connection_factory(), config=config):
             pass
@@ -27,19 +27,22 @@ async def test_sync_token_bucket(connection_factory: ConnectionFactory) -> None:
 
 
 @pytest.mark.parametrize("connection_factory", SYNC_CONNECTIONS)
-async def test_sync_max_sleep(connection_factory: ConnectionFactory) -> None:
-    e = (
-        r"Scheduled to sleep \`[0-9].[0-9]+\` seconds. This exceeds the maximum accepted sleep time of \`0\.1\`"
-        r" seconds."
-    )
+def test_sync_max_sleep(connection_factory: ConnectionFactory) -> None:
     # This will cause the same name (key) be used for different buckets
     config = TokenBucketConfig(max_sleep=0.1)
+    # Build expected error message with actual config values
+    expected_msg = (
+        rf"^Rate limit exceeded for '{config.name}': would sleep "
+        rf"[0-9]+\.[0-9]{{2}}s but max_sleep is {config.max_sleep}s\. "
+        rf"Consider increasing capacity \({config.capacity}\) or "
+        rf"refill_rate \({config.refill_amount}/{config.refill_frequency}s\)\.$"
+    )
 
     with sync_tokenbucket_factory(connection=connection_factory(), config=config):
         pass
 
     with (
-        pytest.raises(MaxSleepExceededError, match=e),
+        pytest.raises(MaxSleepExceededError, match=expected_msg),
         sync_tokenbucket_factory(connection=connection_factory(), config=config),
     ):
         pass  # pragma: no cover
