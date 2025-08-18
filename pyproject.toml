@@ -1,6 +1,6 @@
 [project]
 name = "redis-limiters"
-version = "0.5.1"
+version = "0.6.0"
 description = "Python rate limiters backed by Redis"
 authors = [{ name = "Emil Aliyev", email = "ea01052002@gmail.com" }, { name = "Sondre Lillebø Gundersen", email = "sondrelg@live.no" }]
 requires-python = ">=3.11"
