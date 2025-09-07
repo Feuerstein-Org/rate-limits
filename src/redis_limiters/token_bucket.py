@@ -36,7 +36,8 @@ class TokenBucketBase(BaseModel):
     initial_tokens: NonNegativeFloat | None = None
     refill_amount: PositiveFloat = 1.0
     max_sleep: NonNegativeFloat = 0.0
-    expiry_seconds: PositiveInt = 30
+    expiry_seconds: PositiveInt = 30  # TODO Add tests for this
+    tokens_to_consume: PositiveFloat = 1.0
 
     @model_validator(mode="after")
     def validate_token_bucket_config(self) -> Self:
@@ -53,6 +54,10 @@ class TokenBucketBase(BaseModel):
             raise ValueError(
                 f"Invalid token bucket '{self.name}': initial_tokens ({self.initial_tokens}) "
                 f"cannot exceed capacity ({self.capacity}). Reduce initial_tokens or increase capacity."
+            )
+        if self.tokens_to_consume > self.capacity:
+            raise ValueError(
+                f"Can't consume more tokens than the bucket's capacity: {self.tokens_to_consume} > {self.capacity}"
             )
         return self
 
@@ -110,6 +115,7 @@ class SyncTokenBucket(TokenBucketBase, SyncLuaScriptBase):
                     seconds,
                     microseconds,
                     self.expiry_seconds,
+                    self.tokens_to_consume,
                 ],
             ),
         )
@@ -152,6 +158,7 @@ class AsyncTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
                     seconds,
                     microseconds,
                     self.expiry_seconds,
+                    self.tokens_to_consume,
                 ],
             ),
         )

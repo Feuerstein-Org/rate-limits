@@ -25,6 +25,8 @@ Currently I:
  - added a few more tests (I plan to add more)
  - added default values to the rate limits.
 
+ Note: The README is currently outdated - I will update it later, for now check the releases page.
+
 ## Installation
 
 ```

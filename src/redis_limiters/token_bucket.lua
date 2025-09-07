@@ -4,12 +4,13 @@
 --- This script does three things, in order:
 --- 1. Retrieves token bucket state, which means the last slot assigned,
 ---    and how many tokens are left to be assigned for that slot
---- 2. Works out whether we need to move to the next slot, or consume another
----    token from the current one.
+--- 2. Works out whether we need to move to the next slot(s), or consume
+---    tokens from the current one.
 --- 3. Saves the token bucket state and returns the slot.
 ---
 --- The token bucket implementation is forward looking, so we're really just handing
 --- out the next time there would be tokens in the bucket, and letting the client
+--- decide wait until that time.
 ---
 --- returns:
 --- * The assigned slot, as a millisecond timestamp
@@ -24,6 +25,17 @@ local time_between_slots = tonumber(ARGV[4]) * 1000 -- Convert to milliseconds
 local seconds = tonumber(ARGV[5])
 local microseconds = tonumber(ARGV[6])
 local expiry_seconds = tonumber(ARGV[7])
+local tokens_to_consume = tonumber(ARGV[8]) -- Number of tokens to consume
+
+-- Validate that tokens_to_consume doesn't exceed capacity
+if tokens_to_consume > capacity then
+    return redis.error_reply("Requested tokens exceed bucket capacity")
+end
+
+-- Validate that tokens_to_consume is positive
+if tokens_to_consume <= 0 then
+    return redis.error_reply("Must consume at least 1 token")
+end
 
 -- Keys
 local data_key = KEYS[1]
@@ -55,17 +67,23 @@ if data then
     end
 end
 
--- If no tokens are left, move to the next slot and refill accordingly
-if tokens <= 0 then
-    slot = slot + time_between_slots
-    tokens = refill_amount
+-- If not enough tokens are available, move to the next slot(s) and refill accordingly
+if tokens < tokens_to_consume then
+    -- Calculate how many additional tokens we need
+    local needed_tokens = tokens_to_consume - tokens
+    -- Calculate how many slots we need to move forward to get enough tokens
+    local needed_slots = math.ceil(needed_tokens / refill_amount)
+    slot = slot + needed_slots * time_between_slots
+    tokens = tokens + needed_slots * refill_amount
+    -- Clamp tokens to capacity
+    tokens = math.min(tokens, capacity)
 end
 
--- Consume a token
-tokens = tokens - 1
+-- Consume tokens
+tokens = tokens - tokens_to_consume
 
 -- Save updated state and set expiry
 redis.call('SETEX', data_key, expiry_seconds, string.format('%d %d', slot, tokens))
 
--- Return the slot when the next token will be available
+-- Return the slot when the next token(s) will be available
 return slot

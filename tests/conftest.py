@@ -53,6 +53,7 @@ class TokenBucketConfig:
     refill_amount: float = 1.0
     max_sleep: float = 0.0
     initial_tokens: float | None = None
+    tokens_to_consume: float = 1.0
 
 
 def sync_tokenbucket_factory(*, connection: SyncRedis | SyncRedisCluster, config: TokenBucketConfig) -> SyncTokenBucket:

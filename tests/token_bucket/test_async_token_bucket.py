@@ -52,7 +52,7 @@ async def test_token_bucket_runtimes(
     before = datetime.now()
     await asyncio.gather(*tasks)
     elapsed = delta_to_seconds(datetime.now() - before)
-    assert abs(timeout - elapsed) <= 0.01  # noqa: PLR2004
+    assert abs(timeout - elapsed) <= 0.01
 
 
 @pytest.mark.parametrize("connection_factory", [STANDALONE_ASYNC_CONNECTION])
@@ -108,7 +108,7 @@ async def test_high_concurrency_token_acquisition(
     elapsed = delta_to_seconds(datetime.now() - before)
 
     # Should take roughly (100-5)/5 * 0.1 = ~1.9 seconds
-    assert elapsed >= 1.8  # noqa: PLR2004
+    assert elapsed >= 1.8
 
 
 @pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
@@ -116,6 +116,56 @@ def test_repr(connection_factory: ConnectionFactory) -> None:
     config = TokenBucketConfig(name="test", capacity=1)
     tb = async_tokenbucket_factory(connection=connection_factory(), config=config)
     assert re.match(r"Token bucket instance for queue {limiter}:token-bucket:test", str(tb))
+
+
+@pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
+@pytest.mark.parametrize(
+    "tokens_to_consume, refill_frequency, refill_amount, expected_requests, timeout",
+    [
+        # Default case: tokens_to_consume=1
+        (1.0, 0.2, 1.0, 6, 0.2),
+        # With tokens_to_consume=2, each request consumes 2 tokens
+        # Capacity=5, so we can do 2 full requests (4 tokens)
+        # With refill_frequency=0.5, refill_amount=1: we get 1 token every 0.5s
+        # After initial 2 requests, we need 1 more token for 3rd request (6 total) = 0.5s wait
+        (2.0, 0.5, 1.0, 3, 0.5),
+        (3.0, 1.0, 1.0, 2, 1.0),
+        (5.0, 0.5, 2.0, 2, 1.5),
+    ],
+)
+async def test_token_bucket_tokens_to_consume(  # noqa: PLR0913
+    connection_factory: ConnectionFactory,
+    tokens_to_consume: float,
+    refill_frequency: float,
+    refill_amount: float,
+    expected_requests: int,
+    timeout: float,
+) -> None:
+    """Test that tokens_to_consume parameter correctly controls token consumption per request."""
+    connection = connection_factory()
+    config = TokenBucketConfig(
+        capacity=5.0,
+        refill_frequency=refill_frequency,
+        refill_amount=refill_amount,
+        tokens_to_consume=tokens_to_consume,
+    )
+
+    tasks = [
+        asyncio.create_task(
+            run(
+                async_tokenbucket_factory(connection=connection, config=config),
+                sleep_duration=0,
+            )
+        )
+        for _ in range(expected_requests)
+    ]
+
+    before = datetime.now()
+    await asyncio.gather(*tasks)
+    elapsed = delta_to_seconds(datetime.now() - before)
+
+    # Allow for some timing tolerance
+    assert abs(timeout - elapsed) <= 0.1
 
 
 @pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
@@ -141,9 +191,15 @@ def test_repr(connection_factory: ConnectionFactory) -> None:
         ({"refill_amount": -1}, ValidationError),
         ({"refill_amount": "test"}, ValidationError),
         ({"refill_amount": None}, ValidationError),
+        ({"tokens_to_consume": 0.5}, None),
+        ({"tokens_to_consume": -1}, ValidationError),
+        ({"tokens_to_consume": "test"}, ValidationError),
+        ({"tokens_to_consume": None}, ValidationError),
         ({"initial_tokens": 1, "capacity": 2}, None),
         ({"refill_amount": 3, "capacity": 2}, ValidationError),
         ({"initial_tokens": 3, "capacity": 2}, ValidationError),
+        ({"tokens_to_consume": 3, "capacity": 4}, None),
+        ({"tokens_to_consume": 3, "capacity": 2}, ValidationError),
         ({"max_sleep": 20}, None),
         ({"max_sleep": 0}, None),
         ({"max_sleep": "test"}, ValidationError),
@@ -219,4 +275,4 @@ async def test_initial_tokens(
     await asyncio.gather(*tasks)
     elapsed = delta_to_seconds(datetime.now() - start)
 
-    assert 0.9 <= elapsed <= 1.1  # noqa: PLR2004
+    assert 0.9 <= elapsed <= 1.1
