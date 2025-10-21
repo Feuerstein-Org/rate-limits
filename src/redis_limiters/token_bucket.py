@@ -1,7 +1,7 @@
 import asyncio
+import time
 from datetime import datetime
 from logging import getLogger
-from time import sleep, time
 from types import TracebackType
 from typing import Annotated, ClassVar, Self, cast
 
@@ -17,16 +17,9 @@ PositiveFloat = Annotated[float, Field(gt=0)]
 NonNegativeFloat = Annotated[float, Field(ge=0)]
 
 
-def create_redis_time_tuple() -> tuple[int, int]:
-    """Create a tuple of two integers representing the current time in seconds and microseconds.
-
-    This mimmicks the TIME command in Redis, which returns the current time in seconds and microseconds.
-    See: https://redis.io/commands/time/
-    """
-    now = time()
-    seconds_part = int(now)
-    microseconds_part = int((now - seconds_part) * 1_000_000)
-    return seconds_part, microseconds_part
+def get_current_time_ms() -> int:
+    """Get the current time in milliseconds."""
+    return int(time.time() * 1000)
 
 
 class TokenBucketBase(BaseModel):
@@ -98,11 +91,12 @@ class SyncTokenBucket(TokenBucketBase, SyncLuaScriptBase):
     script_name: ClassVar[str] = "token_bucket.lua"
 
     def __enter__(self) -> float:
-        """Call the token bucket Lua script, receive a datetime for
+        """
+        Call the token bucket Lua script, receive a datetime for
         when to wake up, then sleep up until that point in time.
         """
         # Retrieve timestamp for when to wake up from Redis Lua script
-        seconds, microseconds = create_redis_time_tuple()
+        milliseconds = get_current_time_ms()
         timestamp: int = cast(
             int,
             self.script(
@@ -112,8 +106,7 @@ class SyncTokenBucket(TokenBucketBase, SyncLuaScriptBase):
                     self.refill_amount,
                     self.initial_tokens or self.capacity,
                     self.refill_frequency,
-                    seconds,
-                    microseconds,
+                    milliseconds,
                     self.expiry_seconds,
                     self.tokens_to_consume,
                 ],
@@ -124,7 +117,7 @@ class SyncTokenBucket(TokenBucketBase, SyncLuaScriptBase):
         sleep_time = self.parse_timestamp(timestamp)
 
         # Sleep before returning
-        sleep(sleep_time)
+        time.sleep(sleep_time)
 
         return sleep_time
 
@@ -141,11 +134,12 @@ class AsyncTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
     script_name: ClassVar[str] = "token_bucket.lua"
 
     async def __aenter__(self) -> None:
-        """Call the token bucket Lua script, receive a datetime for
+        """
+        Call the token bucket Lua script, receive a datetime for
         when to wake up, then sleep up until that point in time.
         """
         # Retrieve timestamp for when to wake up from Redis Lua script
-        seconds, microseconds = create_redis_time_tuple()
+        milliseconds = get_current_time_ms()
         timestamp: int = cast(
             int,
             await self.script(
@@ -155,8 +149,7 @@ class AsyncTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
                     self.refill_amount,
                     self.initial_tokens or self.capacity,
                     self.refill_frequency,
-                    seconds,
-                    microseconds,
+                    milliseconds,
                     self.expiry_seconds,
                     self.tokens_to_consume,
                 ],

@@ -22,10 +22,9 @@ local capacity = tonumber(ARGV[1])
 local refill_amount = tonumber(ARGV[2])
 local initial_tokens = tonumber(ARGV[3])
 local time_between_slots = tonumber(ARGV[4]) * 1000 -- Convert to milliseconds
-local seconds = tonumber(ARGV[5])
-local microseconds = tonumber(ARGV[6])
-local expiry_seconds = tonumber(ARGV[7])
-local tokens_to_consume = tonumber(ARGV[8]) -- Number of tokens to consume
+local milliseconds = tonumber(ARGV[5])
+local expiry_seconds = tonumber(ARGV[6])
+local tokens_to_consume = tonumber(ARGV[7]) -- Number of tokens to consume
 
 -- Validate that tokens_to_consume doesn't exceed capacity
 if tokens_to_consume > capacity then
@@ -41,7 +40,7 @@ end
 local data_key = KEYS[1]
 
 -- Get current time in milliseconds
-local now = (tonumber(seconds) * 1000) + (tonumber(microseconds) / 1000)
+local now = milliseconds
 
 -- Default bucket values (used if no bucket exists yet)
 local tokens = math.min(initial_tokens, capacity)
