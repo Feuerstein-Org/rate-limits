@@ -7,22 +7,22 @@ from redis.asyncio.cluster import RedisCluster as AsyncRedisCluster
 from redis.client import Redis as SyncRedis
 from redis.cluster import RedisCluster as SyncRedisCluster
 
-from redis_limiters import AsyncSemaphore, AsyncTokenBucket, SyncSemaphore, SyncTokenBucket
+from redis_limiters import AsyncRedisTokenBucket, AsyncSemaphore, SyncRedisTokenBucket, SyncSemaphore
 
 
 @pytest.mark.parametrize(
     "klass,port,limiters",
     [
-        (SyncRedis, 6378, [SyncSemaphore, SyncTokenBucket]),
-        (SyncRedisCluster, 6380, [SyncSemaphore, SyncTokenBucket]),
-        (AsyncRedis, 6378, [AsyncSemaphore, AsyncTokenBucket]),
-        (AsyncRedisCluster, 6380, [AsyncSemaphore, AsyncTokenBucket]),
+        (SyncRedis, 6378, [SyncSemaphore, SyncRedisTokenBucket]),
+        (SyncRedisCluster, 6380, [SyncSemaphore, SyncRedisTokenBucket]),
+        (AsyncRedis, 6378, [AsyncSemaphore, AsyncRedisTokenBucket]),
+        (AsyncRedisCluster, 6380, [AsyncSemaphore, AsyncRedisTokenBucket]),
     ],
 )
 def test_redis_cluster(
     klass: SyncRedis | AsyncRedis,
     port: int,
-    limiters: list[type[SyncTokenBucket | AsyncTokenBucket | SyncSemaphore | AsyncSemaphore]],
+    limiters: list[type[SyncRedisTokenBucket | AsyncRedisTokenBucket | SyncSemaphore | AsyncSemaphore]],
 ) -> None:
     connection = klass.from_url(f"redis://127.0.0.1:{port}")
     if hasattr(connection, "__aenter__"):

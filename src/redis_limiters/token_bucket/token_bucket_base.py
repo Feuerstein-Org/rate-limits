@@ -1,15 +1,13 @@
-import asyncio
 import time
 from datetime import datetime
 from logging import getLogger
-from types import TracebackType
-from typing import Annotated, ClassVar, Self, cast
+from typing import Annotated, Self
 
 from pydantic import BaseModel, Field, model_validator
 
 from redis_limiters import MaxSleepExceededError
-from redis_limiters.base import AsyncLuaScriptBase, SyncLuaScriptBase
 
+# TODO: Shouldn't this be in a more global file?
 logger = getLogger(__name__)
 
 PositiveInt = Annotated[int, Field(gt=0)]
@@ -76,6 +74,7 @@ class TokenBucketBase(BaseModel):
                 f"Consider increasing capacity ({self.capacity}) or refill_rate ({self.refill_amount}/{self.refill_frequency}s)."
             )
 
+        # TODO make this debug and add more logs
         logger.info("Sleeping %s seconds (%s)", sleep_time, self.name)
         return sleep_time
 
@@ -85,87 +84,3 @@ class TokenBucketBase(BaseModel):
 
     def __str__(self) -> str:
         return f"Token bucket instance for queue {self.key}"
-
-
-class SyncTokenBucket(TokenBucketBase, SyncLuaScriptBase):
-    script_name: ClassVar[str] = "token_bucket.lua"
-
-    def __enter__(self) -> float:
-        """
-        Call the token bucket Lua script, receive a datetime for
-        when to wake up, then sleep up until that point in time.
-        """
-        # Retrieve timestamp for when to wake up from Redis Lua script
-        milliseconds = get_current_time_ms()
-        timestamp: int = cast(
-            int,
-            self.script(
-                keys=[self.key],
-                args=[
-                    self.capacity,
-                    self.refill_amount,
-                    self.initial_tokens or self.capacity,
-                    self.refill_frequency,
-                    milliseconds,
-                    self.expiry_seconds,
-                    self.tokens_to_consume,
-                ],
-            ),
-        )
-
-        # Estimate sleep time
-        sleep_time = self.parse_timestamp(timestamp)
-
-        # Sleep before returning
-        time.sleep(sleep_time)
-
-        return sleep_time
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ) -> None:
-        return
-
-
-class AsyncTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
-    script_name: ClassVar[str] = "token_bucket.lua"
-
-    async def __aenter__(self) -> None:
-        """
-        Call the token bucket Lua script, receive a datetime for
-        when to wake up, then sleep up until that point in time.
-        """
-        # Retrieve timestamp for when to wake up from Redis Lua script
-        milliseconds = get_current_time_ms()
-        timestamp: int = cast(
-            int,
-            await self.script(
-                keys=[self.key],
-                args=[
-                    self.capacity,
-                    self.refill_amount,
-                    self.initial_tokens or self.capacity,
-                    self.refill_frequency,
-                    milliseconds,
-                    self.expiry_seconds,
-                    self.tokens_to_consume,
-                ],
-            ),
-        )
-
-        # Estimate sleep time
-        sleep_time = self.parse_timestamp(timestamp)
-
-        # Sleep before returning
-        await asyncio.sleep(sleep_time)
-
-    async def __aexit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ) -> None:
-        return

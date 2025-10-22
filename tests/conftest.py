@@ -12,7 +12,12 @@ from redis.asyncio.cluster import RedisCluster as AsyncRedisCluster
 from redis.client import Redis as SyncRedis
 from redis.cluster import RedisCluster as SyncRedisCluster
 
-from redis_limiters import AsyncSemaphore, AsyncTokenBucket, SyncSemaphore, SyncTokenBucket
+from redis_limiters import (
+    AsyncRedisTokenBucket,
+    AsyncSemaphore,
+    SyncRedisTokenBucket,
+    SyncSemaphore,
+)
 
 logger: Logger = logging.getLogger(__name__)
 
@@ -40,8 +45,8 @@ def delta_to_seconds(t: timedelta) -> float:
     return t.seconds + t.microseconds / 1_000_000
 
 
-async def run(pt: AsyncSemaphore | AsyncTokenBucket, sleep_duration: float) -> None:
-    async with pt:
+async def run(limiter: AsyncSemaphore | AsyncRedisTokenBucket, sleep_duration: float) -> None:
+    async with limiter:
         await asyncio.sleep(sleep_duration)
 
 
@@ -56,16 +61,18 @@ class TokenBucketConfig:
     tokens_to_consume: float = 1.0
 
 
-def sync_tokenbucket_factory(*, connection: SyncRedis | SyncRedisCluster, config: TokenBucketConfig) -> SyncTokenBucket:
-    return SyncTokenBucket(connection=connection, **asdict(config))
+def sync_tokenbucket_factory(
+    *, connection: SyncRedis | SyncRedisCluster, config: TokenBucketConfig
+) -> SyncRedisTokenBucket:
+    return SyncRedisTokenBucket(connection=connection, **asdict(config))
 
 
 def async_tokenbucket_factory(
     *,
     connection: AsyncRedis | AsyncRedisCluster,
     config: TokenBucketConfig,
-) -> AsyncTokenBucket:
-    return AsyncTokenBucket(connection=connection, **asdict(config))
+) -> AsyncRedisTokenBucket:
+    return AsyncRedisTokenBucket(connection=connection, **asdict(config))
 
 
 @dataclass

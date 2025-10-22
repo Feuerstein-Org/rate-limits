@@ -10,7 +10,7 @@ from pydantic import ValidationError
 from redis.asyncio import Redis
 from redis.asyncio.cluster import RedisCluster
 
-from redis_limiters import AsyncTokenBucket, MaxSleepExceededError
+from redis_limiters import AsyncRedisTokenBucket, MaxSleepExceededError
 from tests.conftest import (
     ASYNC_CONNECTIONS,
     STANDALONE_ASYNC_CONNECTION,
@@ -38,11 +38,12 @@ async def test_token_bucket_runtimes(
 ) -> None:
     connection = connection_factory()
     config = TokenBucketConfig(refill_frequency=frequency)
+    bucket = async_tokenbucket_factory(connection=connection, config=config)
     # Ensure n tasks never complete in less than n/(refill_frequency * refill_amount)
     tasks = [
         asyncio.create_task(
             run(
-                async_tokenbucket_factory(connection=connection, config=config),
+                bucket,
                 sleep_duration=0,
             )
         )
@@ -61,7 +62,7 @@ async def test_sleep_is_non_blocking(connection_factory: partial[Redis]) -> None
         await asyncio.sleep(sleep_duration)
 
     # Create a bucket with 2 slots available (initial_tokens will default to capacity=2)
-    bucket: AsyncTokenBucket = async_tokenbucket_factory(
+    bucket: AsyncRedisTokenBucket = async_tokenbucket_factory(
         connection=connection_factory(),
         config=TokenBucketConfig(capacity=2, refill_amount=2),
     )
