@@ -16,6 +16,7 @@ PositiveInt = Annotated[int, Field(gt=0)]
 NonNegativeFloat = Annotated[float, Field(ge=0)]
 
 
+# TODO: Implement local semaphore as done with token bucket.
 class SemaphoreBase(BaseModel):
     name: str
     capacity: PositiveInt = 5

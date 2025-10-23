@@ -58,7 +58,7 @@ class SyncTokenBucket:
 
     def __new__(
         cls,
-        connection: SyncRedis | SyncRedisCluster | None = None,
+        connection: "SyncRedis | SyncRedisCluster | None" = None,
         **kwargs: Any,
     ) -> "SyncRedisTokenBucket | SyncLocalTokenBucket":
         if connection is not None:
@@ -96,7 +96,7 @@ class AsyncTokenBucket:
 
     def __new__(
         cls,
-        connection: AsyncRedis | AsyncRedisCluster | None = None,
+        connection: "AsyncRedis | AsyncRedisCluster | None" = None,
         **kwargs: Any,
     ) -> "AsyncRedisTokenBucket":
         if connection is not None:

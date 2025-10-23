@@ -18,9 +18,13 @@ ConnectionFactory = partial[Redis] | partial[RedisCluster]
 
 @pytest.mark.parametrize("connection_factory", SYNC_CONNECTIONS)
 def test_sync_semaphore(connection_factory: ConnectionFactory) -> None:
+    connection = connection_factory()
+    if connection is None:  # TODO: Add support for in-memory semaphore
+        pytest.skip("In-memory connection does not support semaphore")
+
     start = datetime.now()
     for _ in range(5):
-        with sync_semaphore_factory(connection=connection_factory()):
+        with sync_semaphore_factory(connection=connection):
             time.sleep(0.2)
 
     # This has the potential of being flaky if CI is extremely slow
@@ -34,9 +38,12 @@ def _run(connection: Redis | RedisCluster, config: SemaphoreConfig, sleep: float
 
 @pytest.mark.parametrize("connection_factory", SYNC_CONNECTIONS)
 def test_sync_max_sleep(connection_factory: ConnectionFactory) -> None:
-    c = connection_factory()
+    connection = connection_factory()
+    if connection is None:  # TODO: Add support for in-memory semaphore
+        pytest.skip("In-memory connection does not support semaphore")
+
     config = SemaphoreConfig(max_sleep=0.1, expiry=1)
-    threading.Thread(target=_run, args=(c, config, 1)).start()
+    threading.Thread(target=_run, args=(connection, config, 1)).start()
     time.sleep(0.1)
     with pytest.raises(MaxSleepExceededError, match=r"Max sleep exceeded waiting for Semaphore"):
-        _run(c, config, 0)
+        _run(connection, config, 0)

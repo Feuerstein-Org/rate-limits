@@ -1,10 +1,11 @@
 import asyncio
 import logging
+import time
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import timedelta
 from functools import partial
 from logging import Logger
-from pathlib import Path
 from uuid import uuid4
 
 from redis.asyncio import Redis as AsyncRedis
@@ -15,13 +16,14 @@ from redis.cluster import RedisCluster as SyncRedisCluster
 from redis_limiters import (
     AsyncRedisTokenBucket,
     AsyncSemaphore,
+    AsyncTokenBucket,
+    SyncLocalTokenBucket,
     SyncRedisTokenBucket,
     SyncSemaphore,
+    SyncTokenBucket,
 )
 
 logger: Logger = logging.getLogger(__name__)
-
-REPO_ROOT: Path = Path(__file__).parent.parent
 
 STANDALONE_URL = "redis://127.0.0.1:6378"
 CLUSTER_URL = "redis://127.0.0.1:6380"
@@ -30,10 +32,12 @@ STANDALONE_SYNC_CONNECTION = partial(SyncRedis.from_url, STANDALONE_URL)
 CLUSTER_SYNC_CONNECTION = partial(SyncRedisCluster.from_url, CLUSTER_URL)
 STANDALONE_ASYNC_CONNECTION = partial(AsyncRedis.from_url, STANDALONE_URL)
 CLUSTER_ASYNC_CONNECTION = partial(AsyncRedisCluster.from_url, CLUSTER_URL)
+IN_MEMORY = lambda: None
 
-SYNC_CONNECTIONS: list[partial[SyncRedis] | partial[SyncRedisCluster]] = [
+SYNC_CONNECTIONS: list[partial[SyncRedis] | partial[SyncRedisCluster] | Callable[[], None]] = [
     STANDALONE_SYNC_CONNECTION,
     CLUSTER_SYNC_CONNECTION,
+    IN_MEMORY,
 ]
 ASYNC_CONNECTIONS: list[partial[AsyncRedis] | partial[AsyncRedisCluster]] = [
     STANDALONE_ASYNC_CONNECTION,
@@ -50,6 +54,11 @@ async def run(limiter: AsyncSemaphore | AsyncRedisTokenBucket, sleep_duration: f
         await asyncio.sleep(sleep_duration)
 
 
+def sync_run(limiter: SyncSemaphore | SyncLocalTokenBucket | SyncRedisTokenBucket, sleep_duration: float) -> None:
+    with limiter:
+        time.sleep(sleep_duration)
+
+
 @dataclass
 class TokenBucketConfig:
     name: str = field(default_factory=lambda: uuid4().hex[:6])
@@ -62,9 +71,9 @@ class TokenBucketConfig:
 
 
 def sync_tokenbucket_factory(
-    *, connection: SyncRedis | SyncRedisCluster, config: TokenBucketConfig
-) -> SyncRedisTokenBucket:
-    return SyncRedisTokenBucket(connection=connection, **asdict(config))
+    *, connection: SyncRedis | SyncRedisCluster | None, config: TokenBucketConfig
+) -> SyncRedisTokenBucket | SyncLocalTokenBucket:
+    return SyncTokenBucket(connection=connection, **asdict(config))
 
 
 def async_tokenbucket_factory(
@@ -72,7 +81,7 @@ def async_tokenbucket_factory(
     connection: AsyncRedis | AsyncRedisCluster,
     config: TokenBucketConfig,
 ) -> AsyncRedisTokenBucket:
-    return AsyncRedisTokenBucket(connection=connection, **asdict(config))
+    return AsyncTokenBucket(connection=connection, **asdict(config))
 
 
 @dataclass
