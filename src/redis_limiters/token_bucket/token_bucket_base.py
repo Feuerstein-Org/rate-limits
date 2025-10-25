@@ -80,6 +80,7 @@ class TokenBucketBase(BaseModel):
         logger.info("Sleeping %s seconds (%s)", sleep_time, self.name)
         return sleep_time
 
+    # TODO: Add whitebox tests for this method
     def execute_local_token_bucket_logic(self, buckets: dict[str, dict]) -> int:
         """
         Execute the token bucket algorithm logic locally.
@@ -105,7 +106,7 @@ class TokenBucketBase(BaseModel):
         now = get_current_time_ms()
         time_between_slots = self.refill_frequency * 1000
 
-        # Initialize bucket state (default for new buckets)
+        # Initialize bucket state (None for new buckets)
         bucket_data = buckets.get(self.key)
 
         if bucket_data is None:
