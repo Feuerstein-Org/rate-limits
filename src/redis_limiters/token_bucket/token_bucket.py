@@ -10,9 +10,9 @@ You can also use the respective bucket classes directly.
  - AsyncRedisTokenBucket
 """
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-from redis_limiters.token_bucket.local_token_bucket import SyncLocalTokenBucket
+from redis_limiters import AsyncLocalTokenBucket, SyncLocalTokenBucket
 
 if TYPE_CHECKING:
     from redis import Redis as SyncRedis
@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from redis.cluster import RedisCluster as SyncRedisCluster
 
     from redis_limiters.token_bucket.redis_token_bucket import AsyncRedisTokenBucket, SyncRedisTokenBucket
+
 
 # Runtime availability check
 try:
@@ -31,6 +32,7 @@ except ImportError:
     REDIS_AVAILABLE = False
 
 
+# Defaults are defined here and in TokenBucketBase to help with typehints - keep them in sync
 class SyncTokenBucket:
     """
     Convenience factory for creating synchronous token bucket instances.
@@ -41,25 +43,46 @@ class SyncTokenBucket:
 
     You can also import SyncRedisTokenBucket or SyncLocalTokenBucket directly.
 
-    Examples:
-        # Local in-memory bucket (no Redis required)
-        >>> bucket = SyncTokenBucket(name="api", capacity=10)
-        >>> with bucket:
-        ...     make_api_call()
+    Args:
+        name: Unique identifier for this token bucket.
+        capacity: Maximum number of tokens the bucket can hold.
+        refill_frequency: Time in seconds between token refills.
+        initial_tokens: Starting number of tokens. Defaults to capacity if not specified.
+        refill_amount: Number of tokens added per refill.
+        max_sleep: Maximum seconds to sleep when rate limited. 0 means no limit - default.
+        expiry_seconds: Redis key expiry time in seconds.
+        tokens_to_consume: Number of tokens to consume per operation.
+        connection: Optional Redis connection (SyncRedis or SyncRedisCluster).
+            If provided, uses Redis-based implementation; otherwise uses local in-memory.
 
-        # Redis-based bucket
-        >>> from redis import Redis # or from redis.cluster import RedisCluster
-        >>> # or RedisCluster(host='localhost', port=6379)
-        >>> redis_conn = Redis(host='localhost', port=6379)
-        >>> bucket = SyncTokenBucket(connection=redis_conn, name="api", capacity=10)
-        >>> with bucket:
-        ...     make_api_call()
+    Examples:
+        Local in-memory bucket (no Redis required)::
+
+            bucket = SyncTokenBucket(name="api", capacity=10)
+            with bucket:
+                make_api_call()
+
+        Redis-based bucket::
+
+            from redis import Redis  # or from redis.cluster import RedisCluster
+            # or RedisCluster(host='localhost', port=6379)
+            redis_conn = Redis(host='localhost', port=6379)
+            bucket = SyncTokenBucket(connection=redis_conn, name="api", capacity=10)
+            with bucket:
+                make_api_call()
     """
 
-    def __new__(
+    def __new__(  # noqa: PLR0913
         cls,
+        name: str,
+        capacity: float = 5.0,
+        refill_frequency: float = 1.0,
+        initial_tokens: float | None = None,
+        refill_amount: float = 1.0,
+        max_sleep: float = 0.0,
+        expiry_seconds: int = 30,  # TODO: Add tests for this
+        tokens_to_consume: float = 1.0,
         connection: "SyncRedis | SyncRedisCluster | None" = None,
-        **kwargs: Any,
     ) -> "SyncRedisTokenBucket | SyncLocalTokenBucket":
         if connection is not None:
             if not REDIS_AVAILABLE:
@@ -69,36 +92,82 @@ class SyncTokenBucket:
             # Import only when needed to avoid requiring redis at module load time
             from redis_limiters.token_bucket.redis_token_bucket import SyncRedisTokenBucket
 
-            return SyncRedisTokenBucket(connection=connection, **kwargs)
-        return SyncLocalTokenBucket(**kwargs)
+            return SyncRedisTokenBucket(
+                connection=connection,
+                name=name,
+                capacity=capacity,
+                refill_frequency=refill_frequency,
+                initial_tokens=initial_tokens,
+                refill_amount=refill_amount,
+                max_sleep=max_sleep,
+                expiry_seconds=expiry_seconds,
+                tokens_to_consume=tokens_to_consume,
+            )
+        return SyncLocalTokenBucket(
+            name=name,
+            capacity=capacity,
+            refill_frequency=refill_frequency,
+            initial_tokens=initial_tokens,
+            refill_amount=refill_amount,
+            max_sleep=max_sleep,
+            expiry_seconds=expiry_seconds,
+            tokens_to_consume=tokens_to_consume,
+        )
 
 
+# Defaults are defined here and in TokenBucketBase to help with typehints - keep them in sync
 class AsyncTokenBucket:
     """
     Convenience factory for creating asynchronous token bucket instances.
 
     Automatically selects the appropriate implementation:
     - If `connection` is provided: uses Redis-based token bucket (AsyncRedisTokenBucket)
-    - If `connection` is None: raises an error (local async implementation not yet available)
+    - If `connection` is None: uses local in-memory token bucket (AsyncLocalTokenBucket)
 
     For explicit control over the implementation, import and use
-    AsyncRedisTokenBucket directly.
+    AsyncRedisTokenBucket or AsyncLocalTokenBucket directly.
+
+    Args:
+        name: Unique identifier for this token bucket.
+        capacity: Maximum number of tokens the bucket can hold.
+        refill_frequency: Time in seconds between token refills.
+        initial_tokens: Starting number of tokens. Defaults to capacity if not specified.
+        refill_amount: Number of tokens added per refill.
+        max_sleep: Maximum seconds to sleep when rate limited. 0 means no limit - default.
+        expiry_seconds: Redis key expiry time in seconds.
+        tokens_to_consume: Number of tokens to consume per operation.
+        connection: Optional async Redis connection (AsyncRedis or AsyncRedisCluster).
+            If provided, uses Redis-based implementation; otherwise uses local in-memory.
 
     Examples:
-        # Redis-based async bucket
-        >>> from redis.asyncio import Redis # or from redis.asyncio.cluster import RedisCluster
-        >>> # or RedisCluster(host='localhost', port=6379)
-        >>> redis_conn = Redis(host='localhost', port=6379)
-        >>> bucket = AsyncTokenBucket(connection=redis_conn, name="api", capacity=10)
-        >>> async with bucket:
-        ...     await make_api_call()
+        Local in-memory async bucket::
+
+            bucket = AsyncTokenBucket(name="api", capacity=10)
+            async with bucket:
+                await make_api_call()
+
+        Redis-based async bucket::
+
+            from redis.asyncio import Redis # or from redis.asyncio.cluster import RedisCluster
+            # or RedisCluster(host='localhost', port=6379)
+            redis_conn = Redis(host='localhost', port=6379)
+            bucket = AsyncTokenBucket(connection=redis_conn, name="api", capacity=10)
+            async with bucket:
+                await make_api_call()
     """
 
-    def __new__(
+    def __new__(  # noqa: PLR0913
         cls,
+        name: str,
+        capacity: float = 5.0,
+        refill_frequency: float = 1.0,
+        initial_tokens: float | None = None,
+        refill_amount: float = 1.0,
+        max_sleep: float = 0.0,
+        expiry_seconds: int = 30,  # TODO: Add tests for this
+        tokens_to_consume: float = 1.0,
         connection: "AsyncRedis | AsyncRedisCluster | None" = None,
-        **kwargs: Any,
-    ) -> "AsyncRedisTokenBucket":
+    ) -> "AsyncRedisTokenBucket | AsyncLocalTokenBucket":
         if connection is not None:
             if not REDIS_AVAILABLE:
                 raise ImportError(
@@ -107,8 +176,24 @@ class AsyncTokenBucket:
             # Import only when needed to avoid requiring redis at module load time
             from redis_limiters.token_bucket.redis_token_bucket import AsyncRedisTokenBucket
 
-            return AsyncRedisTokenBucket(connection=connection, **kwargs)
-        raise NotImplementedError(
-            "Local async token bucket is not yet implemented. "
-            "Please provide a Redis connection or use SyncTokenBucket with SyncLocalTokenBucket."
+            return AsyncRedisTokenBucket(
+                connection=connection,
+                name=name,
+                capacity=capacity,
+                refill_frequency=refill_frequency,
+                initial_tokens=initial_tokens,
+                refill_amount=refill_amount,
+                max_sleep=max_sleep,
+                expiry_seconds=expiry_seconds,
+                tokens_to_consume=tokens_to_consume,
+            )
+        return AsyncLocalTokenBucket(
+            name=name,
+            capacity=capacity,
+            refill_frequency=refill_frequency,
+            initial_tokens=initial_tokens,
+            refill_amount=refill_amount,
+            max_sleep=max_sleep,
+            expiry_seconds=expiry_seconds,
+            tokens_to_consume=tokens_to_consume,
         )

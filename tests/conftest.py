@@ -3,7 +3,6 @@ import logging
 import time
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
-from datetime import timedelta
 from functools import partial
 from logging import Logger
 from uuid import uuid4
@@ -14,6 +13,7 @@ from redis.client import Redis as SyncRedis
 from redis.cluster import RedisCluster as SyncRedisCluster
 
 from redis_limiters import (
+    AsyncLocalTokenBucket,
     AsyncRedisTokenBucket,
     AsyncSemaphore,
     AsyncTokenBucket,
@@ -39,17 +39,17 @@ SYNC_CONNECTIONS: list[partial[SyncRedis] | partial[SyncRedisCluster] | Callable
     CLUSTER_SYNC_CONNECTION,
     IN_MEMORY,
 ]
-ASYNC_CONNECTIONS: list[partial[AsyncRedis] | partial[AsyncRedisCluster]] = [
+
+ASYNC_CONNECTIONS: list[partial[AsyncRedis] | partial[AsyncRedisCluster] | Callable[[], None]] = [
     STANDALONE_ASYNC_CONNECTION,
     CLUSTER_ASYNC_CONNECTION,
+    IN_MEMORY,
 ]
 
 
-def delta_to_seconds(t: timedelta) -> float:
-    return t.seconds + t.microseconds / 1_000_000
-
-
-async def run(limiter: AsyncSemaphore | AsyncRedisTokenBucket, sleep_duration: float) -> None:
+async def async_run(
+    limiter: AsyncSemaphore | AsyncRedisTokenBucket | AsyncLocalTokenBucket, sleep_duration: float
+) -> None:
     async with limiter:
         await asyncio.sleep(sleep_duration)
 
@@ -60,7 +60,7 @@ def sync_run(limiter: SyncSemaphore | SyncLocalTokenBucket | SyncRedisTokenBucke
 
 
 @dataclass
-class TokenBucketConfig:
+class MockTokenBucketConfig:
     name: str = field(default_factory=lambda: uuid4().hex[:6])
     capacity: float = 1.0
     refill_frequency: float = 1.0
@@ -71,7 +71,7 @@ class TokenBucketConfig:
 
 
 def sync_tokenbucket_factory(
-    *, connection: SyncRedis | SyncRedisCluster | None, config: TokenBucketConfig
+    *, connection: SyncRedis | SyncRedisCluster | None, config: MockTokenBucketConfig
 ) -> SyncRedisTokenBucket | SyncLocalTokenBucket:
     return SyncTokenBucket(connection=connection, **asdict(config))
 
@@ -79,8 +79,8 @@ def sync_tokenbucket_factory(
 def async_tokenbucket_factory(
     *,
     connection: AsyncRedis | AsyncRedisCluster,
-    config: TokenBucketConfig,
-) -> AsyncRedisTokenBucket:
+    config: MockTokenBucketConfig,
+) -> AsyncRedisTokenBucket | AsyncLocalTokenBucket:
     return AsyncTokenBucket(connection=connection, **asdict(config))
 
 

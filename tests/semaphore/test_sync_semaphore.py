@@ -24,7 +24,7 @@ def test_sync_semaphore(connection_factory: ConnectionFactory) -> None:
 
     start = datetime.now()
     for _ in range(5):
-        with sync_semaphore_factory(connection=connection):
+        with sync_semaphore_factory(connection=connection_factory()):
             time.sleep(0.2)
 
     # This has the potential of being flaky if CI is extremely slow
