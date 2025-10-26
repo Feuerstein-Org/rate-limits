@@ -1,4 +1,4 @@
-"""This module contains tests for the TokenBucketConfig initialization and type validation."""
+"""Contains tests for the TokenBucketConfig initialization and type validation."""
 
 from typing import Any
 
@@ -46,6 +46,7 @@ from redis_limiters.token_bucket.token_bucket_base import TokenBucketBase
     ],
 )
 def test_init_types(config_params: dict[str, Any], error: type[ValidationError] | None) -> None:
+    """Test TokenBucketConfig initialization with various parameter types and values."""
     if "name" not in config_params:
         config_params["name"] = "test"
     if error:

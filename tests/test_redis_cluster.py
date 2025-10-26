@@ -1,3 +1,5 @@
+"""Test Redis Cluster and Standalone connections with all limiters."""
+
 import asyncio
 from typing import cast
 
@@ -24,6 +26,7 @@ def test_redis_cluster(
     port: int,
     limiters: list[type[SyncRedisTokenBucket | AsyncRedisTokenBucket | SyncSemaphore | AsyncSemaphore]],
 ) -> None:
+    """Test that Redis Cluster and Standalone connections work with all limiters."""
     connection = klass.from_url(f"redis://127.0.0.1:{port}")
     if hasattr(connection, "__aenter__"):
         # Async connection
@@ -38,7 +41,7 @@ def test_redis_cluster(
         connection.info()
 
     # Test that all limiters can be instantiated with the connection
-    # Ignore statements for properties that are unique in async and sync versions
+    # Ignore statements for properties that are unique in semaphore vs token bucket
     for limiter in limiters:
         limiter(
             name="test",

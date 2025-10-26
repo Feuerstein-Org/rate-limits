@@ -1,3 +1,5 @@
+"""Test asynchronous token bucket implementation."""
+
 import asyncio
 import logging
 import re
@@ -34,6 +36,7 @@ ConnectionFactory = partial[Redis] | partial[RedisCluster]
 async def test_token_bucket_runtimes(
     connection_factory: ConnectionFactory, n: int, frequency: float, timeout: int
 ) -> None:
+    """Test that n requests complete in expected time based on refill frequency."""
     config = MockTokenBucketConfig(refill_frequency=frequency)
     bucket = async_tokenbucket_factory(connection=connection_factory(), config=config)
     # Ensure n tasks never complete in less than n/(refill_frequency * refill_amount)
@@ -55,6 +58,8 @@ async def test_token_bucket_runtimes(
 
 @pytest.mark.parametrize("connection_factory", [STANDALONE_ASYNC_CONNECTION, IN_MEMORY])
 async def test_sleep_is_non_blocking(connection_factory: partial[Redis]) -> None:
+    """Test that token bucket sleep does not block other coroutines."""
+
     async def _sleep(sleep_duration: float) -> None:
         await asyncio.sleep(sleep_duration)
 
@@ -94,7 +99,7 @@ async def test_sleep_is_non_blocking(connection_factory: partial[Redis]) -> None
 async def test_high_concurrency_token_acquisition(
     connection_factory: ConnectionFactory,
 ) -> None:
-    """Test many concurrent tasks accessing the same bucket"""
+    """Test many concurrent tasks accessing the same bucket."""
     bucket = async_tokenbucket_factory(
         connection=connection_factory(),
         config=MockTokenBucketConfig(capacity=5, refill_frequency=0.1, refill_amount=5),
@@ -111,6 +116,7 @@ async def test_high_concurrency_token_acquisition(
 
 @pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
 def test_repr(connection_factory: ConnectionFactory) -> None:
+    """Test the string representation of the AsyncTokenBucket."""
     config = MockTokenBucketConfig(name="test", capacity=1)
     tb = async_tokenbucket_factory(connection=connection_factory(), config=config)
     assert re.match(r"Token bucket instance for queue {limiter}:token-bucket:test", str(tb))
@@ -169,6 +175,7 @@ async def test_token_bucket_tokens_to_consume(  # noqa: PLR0913
 
 @pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
 async def test_async_max_sleep(connection_factory: ConnectionFactory) -> None:
+    """Test that MaxSleepExceededError is raised when max_sleep is exceeded."""
     # Make two requests that will exceed max_sleep
     config = MockTokenBucketConfig(max_sleep=0.1)
     # Build expected error message with actual config values

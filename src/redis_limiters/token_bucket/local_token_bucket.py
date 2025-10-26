@@ -1,3 +1,5 @@
+"""Synchronous and Asynchronous local token bucket implementations."""
+
 import asyncio
 import time
 from threading import Lock
@@ -9,10 +11,25 @@ from redis_limiters.token_bucket.token_bucket_base import TokenBucketBase
 
 class SyncLocalTokenBucket(TokenBucketBase):
     """
-    Thread-safe local token bucket implementation.
+    Synchronous local token bucket.
 
-    This class uses a reservation based token bucket algorithm with bucket data stored in memory.
-    The rate limiting is done per key which are shared across all instances of this class.
+    Args:
+        name: Unique identifier for this token bucket.
+        capacity: Maximum number of tokens the bucket can hold.
+        refill_frequency: Time in seconds between token refills.
+        initial_tokens: Starting number of tokens. Defaults to capacity if not specified.
+        refill_amount: Number of tokens added per refill.
+        max_sleep: Maximum seconds to sleep when rate limited. 0 means no limit - default.
+        expiry_seconds: Redis key expiry time in seconds.
+        tokens_to_consume: Number of tokens to consume per operation.
+
+    Example:
+        .. code-block:: python
+
+           bucket = SyncLocalTokenBucket(name="api", capacity=10)
+            with bucket:
+                make_api_call()
+
     """
 
     # Class-level storage for bucket state (shared across instances)
@@ -32,12 +49,7 @@ class SyncLocalTokenBucket(TokenBucketBase):
         return self._locks[self.key]
 
     def __enter__(self) -> None:
-        """
-        Call the token bucket logic, calculate sleep time, and sleep if needed.
-
-        Returns:
-            float: The sleep time in seconds.
-        """
+        """Acquire token(s) from the token bucket and sleep until they are available."""
         # Execute token bucket logic with thread safety
         with self._get_lock():
             timestamp = self.execute_local_token_bucket_logic(self._buckets)
@@ -57,13 +69,28 @@ class SyncLocalTokenBucket(TokenBucketBase):
 
 class AsyncLocalTokenBucket(TokenBucketBase):
     """
-    Async-safe local token bucket implementation.
+    Asynchronous local token bucket.
 
-    This class uses a reservation based token bucket algorithm with bucket data stored in memory.
-    The rate limiting is done per key which are shared across all instances of this class.
+    Args:
+        name: Unique identifier for this token bucket.
+        capacity: Maximum number of tokens the bucket can hold.
+        refill_frequency: Time in seconds between token refills.
+        initial_tokens: Starting number of tokens. Defaults to capacity if not specified.
+        refill_amount: Number of tokens added per refill.
+        max_sleep: Maximum seconds to sleep when rate limited. 0 means no limit - default.
+        expiry_seconds: Redis key expiry time in seconds.
+        tokens_to_consume: Number of tokens to consume per operation.
+
+    Example:
+        .. code-block:: python
+
+            bucket = AsyncLocalTokenBucket(name="api", capacity=10)
+            async with bucket:
+                await make_api_call()
 
     Note: If you need to use this class from multiple threads (multiple event loops),
     consider using SyncLocalTokenBucket instead, which provides proper thread safety.
+
     """
 
     # Class-level storage for bucket state (shared across instances)
@@ -72,12 +99,7 @@ class AsyncLocalTokenBucket(TokenBucketBase):
     _buckets: ClassVar[dict[str, dict]] = {}
 
     async def __aenter__(self) -> None:
-        """
-        Call the token bucket logic, calculate sleep time, and sleep if needed.
-
-        Returns:
-            float: The sleep time in seconds.
-        """
+        """Acquire token(s) from the token bucket and sleep until they are available."""
         # Execute token bucket logic
         # No lock needed: asyncio is single-threaded and execute_local_token_bucket_logic
         # has no await points, making it atomic from asyncio's perspective

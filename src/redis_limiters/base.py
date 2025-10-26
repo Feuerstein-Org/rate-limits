@@ -1,3 +1,5 @@
+"""Base classes for Redis Lua script handling."""
+
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -10,6 +12,8 @@ from redis.commands.core import AsyncScript, Script
 
 
 class SyncLuaScriptBase(BaseModel):
+    """Base class for synchronous Redis Lua script handling."""
+
     model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
     connection: SyncRedis | SyncRedisCluster
@@ -17,6 +21,7 @@ class SyncLuaScriptBase(BaseModel):
     script: Script = None  # type: ignore[assignment]
 
     def __init__(self, **kwargs: Any) -> None:
+        """Initialize the Lua script base class and load the script."""
         super().__init__(**kwargs)
 
         # https://github.com/redis/redis-py/issues/3712
@@ -26,6 +31,8 @@ class SyncLuaScriptBase(BaseModel):
 
 
 class AsyncLuaScriptBase(BaseModel):
+    """Base class for asynchronous Redis Lua script handling."""
+
     model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
     connection: AsyncRedis | AsyncRedisCluster
@@ -33,6 +40,7 @@ class AsyncLuaScriptBase(BaseModel):
     script: AsyncScript = None  # type: ignore[assignment]
 
     def __init__(self, **kwargs: Any) -> None:
+        """Initialize the Lua script base class and load the script."""
         super().__init__(**kwargs)
 
         # https://github.com/redis/redis-py/issues/3712

@@ -1,3 +1,9 @@
+"""
+Base class for Token Bucket rate limiters.
+
+Defines common configuration parameters and local token bucket logic.
+"""
+
 import math
 import time
 from datetime import datetime
@@ -23,6 +29,8 @@ def get_current_time_ms() -> int:
 
 # Defaults are defined here and in Async/SyncTokenBucket to help with typehints - keep them in sync
 class TokenBucketBase(BaseModel):
+    """Base class for Token Bucket rate limiters."""
+
     name: str
     capacity: PositiveFloat = 5.0
     refill_frequency: PositiveFloat = 1.0
@@ -34,6 +42,7 @@ class TokenBucketBase(BaseModel):
 
     @model_validator(mode="after")
     def validate_token_bucket_config(self) -> Self:
+        """Validate TokenBucketConfig parameters after initialization with Pydantic."""
         # Set initial_tokens to capacity if not explicitly provided
         if self.initial_tokens is None:
             self.initial_tokens = self.capacity
@@ -55,10 +64,9 @@ class TokenBucketBase(BaseModel):
         return self
 
     def parse_timestamp(self, timestamp: int) -> float:
+        """Parse a timestamp in milliseconds and determine how long to sleep."""
         # Parse to datetime
         wake_up_time = datetime.fromtimestamp(timestamp / 1000)
-
-        # Establish the current time, with a very small buffer for processing time
         now = datetime.now()
 
         # Return if we don't need to sleep
@@ -93,6 +101,7 @@ class TokenBucketBase(BaseModel):
 
         Returns:
             int: The slot timestamp in milliseconds when tokens are available.
+
         """
         # This method should mirror the lua script logic as closely as possible
 
@@ -145,6 +154,7 @@ class TokenBucketBase(BaseModel):
 
     @property
     def key(self) -> str:
+        """Key used for storing/retrieving the bucket state."""
         return f"{{limiter}}:token-bucket:{self.name}"
 
     def __str__(self) -> str:

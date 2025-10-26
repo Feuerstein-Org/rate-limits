@@ -1,3 +1,5 @@
+"""Synchronous and Asynchronous Redis-backed (Standalone or Cluster) token bucket implementations."""
+
 import asyncio
 import time
 from types import TracebackType
@@ -8,13 +10,35 @@ from redis_limiters.token_bucket.token_bucket_base import TokenBucketBase, get_c
 
 
 class SyncRedisTokenBucket(TokenBucketBase, SyncLuaScriptBase):
+    """
+    Synchronous Redis-backed (Standalone or Cluster) token bucket.
+
+    Args:
+        name: Unique identifier for this token bucket.
+        connection: Redis connection (SyncRedis or SyncRedisCluster).
+        capacity: Maximum number of tokens the bucket can hold.
+        refill_frequency: Time in seconds between token refills.
+        initial_tokens: Starting number of tokens. Defaults to capacity if not specified.
+        refill_amount: Number of tokens added per refill.
+        max_sleep: Maximum seconds to sleep when rate limited. 0 means no limit - default.
+        expiry_seconds: Redis key expiry time in seconds.
+        tokens_to_consume: Number of tokens to consume per operation.
+
+    Example:
+        .. code-block:: python
+
+            from redis import Redis  # or from redis.cluster import RedisCluster
+            redis_conn = Redis(host='localhost', port=6379)
+            bucket = SyncRedisTokenBucket(connection=redis_conn, name="api", capacity=10)
+            with bucket:
+                make_api_call()
+
+    """
+
     script_name: ClassVar[str] = "token_bucket/token_bucket.lua"
 
     def __enter__(self) -> float:
-        """
-        Call the token bucket Lua script, receive a datetime for
-        when to wake up, then sleep up until that point in time.
-        """
+        """Acquire token(s) from the token bucket and sleep until they are available."""
         # Retrieve timestamp for when to wake up from Redis Lua script
         milliseconds = get_current_time_ms()
         timestamp: int = cast(
@@ -51,13 +75,35 @@ class SyncRedisTokenBucket(TokenBucketBase, SyncLuaScriptBase):
 
 
 class AsyncRedisTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
+    """
+    Asynchronous Redis-backed (Standalone or Cluster) token bucket.
+
+    Args:
+        name: Unique identifier for this token bucket.
+        connection: Redis connection (AsyncRedis or AsyncRedisCluster).
+        capacity: Maximum number of tokens the bucket can hold.
+        refill_frequency: Time in seconds between token refills.
+        initial_tokens: Starting number of tokens. Defaults to capacity if not specified.
+        refill_amount: Number of tokens added per refill.
+        max_sleep: Maximum seconds to sleep when rate limited. 0 means no limit - default.
+        expiry_seconds: Redis key expiry time in seconds.
+        tokens_to_consume: Number of tokens to consume per operation.
+
+    Example:
+        .. code-block:: python
+
+            from redis.asyncio import Redis  # or from redis.asyncio.cluster import RedisCluster
+            redis_conn = Redis(host='localhost', port=6379)
+            bucket = AsyncRedisTokenBucket(connection=redis_conn, name="api", capacity=10)
+            async with bucket:
+                await make_api_call()
+
+    """
+
     script_name: ClassVar[str] = "token_bucket/token_bucket.lua"
 
     async def __aenter__(self) -> None:
-        """
-        Call the token bucket Lua script, receive a datetime for
-        when to wake up, then sleep up until that point in time.
-        """
+        """Acquire token(s) from the token bucket and sleep until they are available."""
         # Retrieve timestamp for when to wake up from Redis Lua script
         milliseconds = get_current_time_ms()
         timestamp: int = cast(

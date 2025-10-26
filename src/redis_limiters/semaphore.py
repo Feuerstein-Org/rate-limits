@@ -1,3 +1,5 @@
+"""Semaphore limiter implementation."""
+
 from datetime import datetime
 from logging import getLogger
 from types import TracebackType
@@ -17,7 +19,7 @@ NonNegativeFloat = Annotated[float, Field(ge=0)]
 
 
 # TODO: Implement local semaphore as done with token bucket.
-class SemaphoreBase(BaseModel):
+class SemaphoreBase(BaseModel):  # noqa: D101 TODO: Fix after local semaphore is added
     name: str
     capacity: PositiveInt = 5
     expiry: PositiveInt = 30
@@ -37,7 +39,7 @@ class SemaphoreBase(BaseModel):
         return f"Semaphore instance for queue {self.key}"
 
 
-class SyncSemaphore(SemaphoreBase, SyncLuaScriptBase):
+class SyncSemaphore(SemaphoreBase, SyncLuaScriptBase):  # noqa: D101 TODO: Fix after local semaphore is added
     script_name: ClassVar[str] = "semaphore.lua"
 
     def __enter__(self) -> None:
@@ -81,7 +83,7 @@ class SyncSemaphore(SemaphoreBase, SyncLuaScriptBase):
         logger.debug("Released semaphore %s", self.name)
 
 
-class AsyncSemaphore(SemaphoreBase, AsyncLuaScriptBase):
+class AsyncSemaphore(SemaphoreBase, AsyncLuaScriptBase):  # noqa: D101 TODO: Fix after local semaphore is added
     script_name: ClassVar[str] = "semaphore.lua"
 
     async def __aenter__(self) -> None:

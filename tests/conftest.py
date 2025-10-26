@@ -1,3 +1,5 @@
+"""Common test fixtures and utilities for redis_limiters tests."""
+
 import asyncio
 import logging
 import time
@@ -50,17 +52,21 @@ ASYNC_CONNECTIONS: list[partial[AsyncRedis] | partial[AsyncRedisCluster] | Calla
 async def async_run(
     limiter: AsyncSemaphore | AsyncRedisTokenBucket | AsyncLocalTokenBucket, sleep_duration: float
 ) -> None:
+    """Async: acquire the limiter and sleep for the specified duration."""
     async with limiter:
         await asyncio.sleep(sleep_duration)
 
 
 def sync_run(limiter: SyncSemaphore | SyncLocalTokenBucket | SyncRedisTokenBucket, sleep_duration: float) -> None:
+    """Sync: acquire the limiter and sleep for the specified duration."""
     with limiter:
         time.sleep(sleep_duration)
 
 
 @dataclass
 class MockTokenBucketConfig:
+    """Configuration for mock token bucket instances used in tests."""
+
     name: str = field(default_factory=lambda: uuid4().hex[:6])
     capacity: float = 1.0
     refill_frequency: float = 1.0
@@ -73,6 +79,7 @@ class MockTokenBucketConfig:
 def sync_tokenbucket_factory(
     *, connection: SyncRedis | SyncRedisCluster | None, config: MockTokenBucketConfig
 ) -> SyncRedisTokenBucket | SyncLocalTokenBucket:
+    """Create a SyncTokenBucket or SyncRedisTokenBucket if connection was provided."""
     return SyncTokenBucket(connection=connection, **asdict(config))
 
 
@@ -81,18 +88,21 @@ def async_tokenbucket_factory(
     connection: AsyncRedis | AsyncRedisCluster,
     config: MockTokenBucketConfig,
 ) -> AsyncRedisTokenBucket | AsyncLocalTokenBucket:
+    """Create a AsyncTokenBucket or AsyncRedisTokenBucket if connection was provided."""
     return AsyncTokenBucket(connection=connection, **asdict(config))
 
 
 @dataclass
 class SemaphoreConfig:
+    """Configuration for semaphore instances used in tests."""
+
     name: str = field(default_factory=lambda: uuid4().hex[:6])
     capacity: int = 1
     expiry: int = 30
     max_sleep: float = 60.0
 
 
-def sync_semaphore_factory(
+def sync_semaphore_factory(  # noqa: D103 TODO: Fix after local semaphore is added
     *, connection: SyncRedis | SyncRedisCluster, config: SemaphoreConfig | None = None
 ) -> SyncSemaphore:
     if config is None:
@@ -101,7 +111,7 @@ def sync_semaphore_factory(
     return SyncSemaphore(connection=connection, **asdict(config))
 
 
-def async_semaphore_factory(
+def async_semaphore_factory(  # noqa: D103 TODO: Fix after local semaphore is added
     *, connection: AsyncRedis | AsyncRedisCluster, config: SemaphoreConfig | None = None
 ) -> AsyncSemaphore:
     if config is None:

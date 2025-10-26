@@ -77,8 +77,8 @@ exclude_lines = [
 [tool.ruff]
 line-length = 120
 target-version = "py311"
-lint.select = ["A", "ANN", "B", "C", "F", "W", "C90", "C4", "I", "T20", "PT", "PLE", "PLR", "PLW", "SIM", "RUF", "RET"]
-lint.ignore = ["ANN401", "PLR1711"]
+lint.select = ["A", "ANN", "B", "C", "D", "F", "W", "C90", "C4", "I", "T20", "PT", "PLE", "PLR", "PLW", "SIM", "RUF", "RET"]
+lint.ignore = ["ANN401", "PLR1711", "D105", "D400", "D203", "D212", "D415", "D401"]
 lint.fixable = ["A", "B", "C", "D", "E", "F", "G", "I", "N", "Q", "S", "T", "W", "ANN", "ARG", "BLE", "COM", "DJ", "DTZ", "EM", "ERA", "EXE", "FBT", "ICN", "INP", "ISC", "NPY", "PD", "PGH", "PIE", "PL", "PLE", "PT", "PTH", "PYI", "RET", "RSE", "RUF", "SIM", "SLF", "TCH", "TID", "TRY", "UP", "YTT"]
 lint.unfixable = []
 exclude = [
@@ -107,6 +107,7 @@ exclude = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["PLR2004"]
+"tests/semaphore/*" = ["D"] # TODO: Remove this after local semaphore is implemented
 
 [tool.ruff.lint.flake8-pytest-style]
 fixture-parentheses=false

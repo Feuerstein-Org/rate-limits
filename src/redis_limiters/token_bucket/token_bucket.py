@@ -1,5 +1,6 @@
 """
 Factory classes for creating token bucket instances.
+
 Each class will use a token bucket algorithm running locally unless a "connection"
 parameter is provided for the Redis server/cluster.
 
@@ -35,7 +36,7 @@ except ImportError:
 # Defaults are defined here and in TokenBucketBase to help with typehints - keep them in sync
 class SyncTokenBucket:
     """
-    Convenience factory for creating synchronous token bucket instances.
+    Factory class for creating synchronous token bucket instances.
 
     Automatically selects the appropriate implementation:
     - If `connection` is provided: uses Redis-based token bucket (SyncRedisTokenBucket)
@@ -56,23 +57,27 @@ class SyncTokenBucket:
             If provided, uses Redis-based implementation; otherwise uses local in-memory.
 
     Examples:
-        Local in-memory bucket (no Redis required)::
+        Local in-memory bucket (no Redis required):
+
+        .. code-block:: python
 
             bucket = SyncTokenBucket(name="api", capacity=10)
             with bucket:
                 make_api_call()
 
-        Redis-based bucket::
+        Redis-based bucket:
+
+        .. code-block:: python
 
             from redis import Redis  # or from redis.cluster import RedisCluster
-            # or RedisCluster(host='localhost', port=6379)
             redis_conn = Redis(host='localhost', port=6379)
             bucket = SyncTokenBucket(connection=redis_conn, name="api", capacity=10)
             with bucket:
                 make_api_call()
+
     """
 
-    def __new__(  # noqa: PLR0913
+    def __new__(  # noqa: PLR0913, D102
         cls,
         name: str,
         capacity: float = 5.0,
@@ -118,7 +123,7 @@ class SyncTokenBucket:
 # Defaults are defined here and in TokenBucketBase to help with typehints - keep them in sync
 class AsyncTokenBucket:
     """
-    Convenience factory for creating asynchronous token bucket instances.
+    Factory class for creating asynchronous token bucket instances.
 
     Automatically selects the appropriate implementation:
     - If `connection` is provided: uses Redis-based token bucket (AsyncRedisTokenBucket)
@@ -140,23 +145,27 @@ class AsyncTokenBucket:
             If provided, uses Redis-based implementation; otherwise uses local in-memory.
 
     Examples:
-        Local in-memory async bucket::
+        Local in-memory async bucket:
+
+        .. code-block:: python
 
             bucket = AsyncTokenBucket(name="api", capacity=10)
             async with bucket:
                 await make_api_call()
 
-        Redis-based async bucket::
+        Redis-based async bucket:
 
-            from redis.asyncio import Redis # or from redis.asyncio.cluster import RedisCluster
-            # or RedisCluster(host='localhost', port=6379)
+        .. code-block:: python
+
+            from redis.asyncio import Redis
             redis_conn = Redis(host='localhost', port=6379)
             bucket = AsyncTokenBucket(connection=redis_conn, name="api", capacity=10)
             async with bucket:
                 await make_api_call()
+
     """
 
-    def __new__(  # noqa: PLR0913
+    def __new__(  # noqa: PLR0913, D102
         cls,
         name: str,
         capacity: float = 5.0,

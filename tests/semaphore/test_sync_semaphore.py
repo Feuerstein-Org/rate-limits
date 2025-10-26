@@ -1,4 +1,5 @@
-import logging
+"""Tests for synchronous semaphore implementation."""
+
 import threading
 import time
 from datetime import datetime, timedelta
@@ -10,8 +11,6 @@ from redis.cluster import RedisCluster
 
 from redis_limiters import MaxSleepExceededError
 from tests.conftest import SYNC_CONNECTIONS, SemaphoreConfig, sync_semaphore_factory
-
-logger = logging.getLogger(__name__)
 
 ConnectionFactory = partial[Redis] | partial[RedisCluster]
 

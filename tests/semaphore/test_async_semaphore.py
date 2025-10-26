@@ -1,3 +1,5 @@
+"""Tests for asynchronous semaphore implementation."""
+
 import asyncio
 import logging
 import re

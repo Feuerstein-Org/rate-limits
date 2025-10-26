@@ -1,3 +1,5 @@
+"""Test synchronous token bucket implementation."""
+
 import re
 import time
 from collections.abc import Callable
@@ -30,6 +32,7 @@ ConnectionFactory = partial[Redis] | partial[RedisCluster] | Callable[[], None]
     ],
 )
 def test_token_bucket_runtimes(connection_factory: ConnectionFactory, n: int, frequency: float, timeout: int) -> None:
+    """Test that n requests complete in expected time based on refill frequency."""
     connection = connection_factory()
     config = MockTokenBucketConfig(refill_frequency=frequency)
     bucket = sync_tokenbucket_factory(connection=connection, config=config)
@@ -52,6 +55,8 @@ def test_token_bucket_runtimes(connection_factory: ConnectionFactory, n: int, fr
 
 @pytest.mark.parametrize("connection_factory", [STANDALONE_SYNC_CONNECTION, IN_MEMORY])
 def test_sleep_is_non_blocking(connection_factory: partial[Redis]) -> None:
+    """Test that token bucket sleep does not block other threads."""
+
     def _sleep(sleep_duration: float) -> None:
         time.sleep(sleep_duration)
 
@@ -99,7 +104,7 @@ def test_sleep_is_non_blocking(connection_factory: partial[Redis]) -> None:
 def test_high_concurrency_token_acquisition(
     connection_factory: ConnectionFactory,
 ) -> None:
-    """Test many concurrent threads accessing the same bucket"""
+    """Test many concurrent threads accessing the same bucket."""
     bucket = sync_tokenbucket_factory(
         connection=connection_factory(),
         config=MockTokenBucketConfig(capacity=5, refill_frequency=0.1, refill_amount=5),
@@ -120,6 +125,7 @@ def test_high_concurrency_token_acquisition(
 
 @pytest.mark.parametrize("connection_factory", SYNC_CONNECTIONS)
 def test_repr(connection_factory: ConnectionFactory) -> None:
+    """Test the string representation of the SyncTokenBucket."""
     config = MockTokenBucketConfig(name="test", capacity=1)
     tb = sync_tokenbucket_factory(connection=connection_factory(), config=config)
     assert re.match(r"Token bucket instance for queue {limiter}:token-bucket:test", str(tb))
@@ -177,6 +183,7 @@ def test_token_bucket_tokens_to_consume(  # noqa: PLR0913
 
 @pytest.mark.parametrize("connection_factory", SYNC_CONNECTIONS)
 def test_sync_max_sleep(connection_factory: ConnectionFactory) -> None:
+    """Test that MaxSleepExceededError is raised when max_sleep is exceeded."""
     # Make two requests that will exceed max_sleep
     config = MockTokenBucketConfig(max_sleep=0.1)
     # Build expected error message with actual config values
