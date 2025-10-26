@@ -24,7 +24,7 @@ local refill_amount = tonumber(ARGV[2])
 local initial_tokens = tonumber(ARGV[3])
 local time_between_slots = tonumber(ARGV[4]) * 1000 -- Convert to milliseconds
 local milliseconds = tonumber(ARGV[5])
-local expiry_seconds = tonumber(ARGV[6])
+local expiry = tonumber(ARGV[6])
 local tokens_to_consume = tonumber(ARGV[7]) -- Number of tokens to consume
 
 -- Validate that tokens_to_consume doesn't exceed capacity
@@ -83,7 +83,7 @@ end
 tokens = tokens - tokens_to_consume
 
 -- Save updated state and set expiry
-redis.call('SETEX', data_key, expiry_seconds, string.format('%d %d', slot, tokens))
+redis.call('SETEX', data_key, expiry, string.format('%d %d', slot, tokens))
 
 -- Return the slot when the next token(s) will be available
 return slot

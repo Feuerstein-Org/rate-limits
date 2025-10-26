@@ -51,7 +51,7 @@ class SyncTokenBucket:
         initial_tokens: Starting number of tokens. Defaults to capacity if not specified.
         refill_amount: Number of tokens added per refill.
         max_sleep: Maximum seconds to sleep when rate limited. 0 means no limit - default.
-        expiry_seconds: Redis key expiry time in seconds.
+        expiry: Key expiry time in seconds - currently not implemented for local buckets.
         tokens_to_consume: Number of tokens to consume per operation.
         connection: Optional Redis connection (SyncRedis or SyncRedisCluster).
             If provided, uses Redis-based implementation; otherwise uses local in-memory.
@@ -85,7 +85,7 @@ class SyncTokenBucket:
         initial_tokens: float | None = None,
         refill_amount: float = 1.0,
         max_sleep: float = 0.0,
-        expiry_seconds: int = 30,  # TODO: Add tests for this
+        expiry: int = 30,  # TODO: Add tests for this
         tokens_to_consume: float = 1.0,
         connection: "SyncRedis | SyncRedisCluster | None" = None,
     ) -> "SyncRedisTokenBucket | SyncLocalTokenBucket":
@@ -105,7 +105,7 @@ class SyncTokenBucket:
                 initial_tokens=initial_tokens,
                 refill_amount=refill_amount,
                 max_sleep=max_sleep,
-                expiry_seconds=expiry_seconds,
+                expiry=expiry,
                 tokens_to_consume=tokens_to_consume,
             )
         return SyncLocalTokenBucket(
@@ -115,7 +115,7 @@ class SyncTokenBucket:
             initial_tokens=initial_tokens,
             refill_amount=refill_amount,
             max_sleep=max_sleep,
-            expiry_seconds=expiry_seconds,
+            expiry=expiry,
             tokens_to_consume=tokens_to_consume,
         )
 
@@ -139,7 +139,7 @@ class AsyncTokenBucket:
         initial_tokens: Starting number of tokens. Defaults to capacity if not specified.
         refill_amount: Number of tokens added per refill.
         max_sleep: Maximum seconds to sleep when rate limited. 0 means no limit - default.
-        expiry_seconds: Redis key expiry time in seconds.
+        expiry: Key expiry time in seconds - currently not implemented for local buckets.
         tokens_to_consume: Number of tokens to consume per operation.
         connection: Optional async Redis connection (AsyncRedis or AsyncRedisCluster).
             If provided, uses Redis-based implementation; otherwise uses local in-memory.
@@ -173,7 +173,7 @@ class AsyncTokenBucket:
         initial_tokens: float | None = None,
         refill_amount: float = 1.0,
         max_sleep: float = 0.0,
-        expiry_seconds: int = 30,  # TODO: Add tests for this
+        expiry: int = 30,  # TODO: Add tests for this
         tokens_to_consume: float = 1.0,
         connection: "AsyncRedis | AsyncRedisCluster | None" = None,
     ) -> "AsyncRedisTokenBucket | AsyncLocalTokenBucket":
@@ -193,7 +193,7 @@ class AsyncTokenBucket:
                 initial_tokens=initial_tokens,
                 refill_amount=refill_amount,
                 max_sleep=max_sleep,
-                expiry_seconds=expiry_seconds,
+                expiry=expiry,
                 tokens_to_consume=tokens_to_consume,
             )
         return AsyncLocalTokenBucket(
@@ -203,6 +203,6 @@ class AsyncTokenBucket:
             initial_tokens=initial_tokens,
             refill_amount=refill_amount,
             max_sleep=max_sleep,
-            expiry_seconds=expiry_seconds,
+            expiry=expiry,
             tokens_to_consume=tokens_to_consume,
         )

@@ -50,7 +50,7 @@ class TestSyncTokenBucketFactory:
             initial_tokens=25,
             max_sleep=10.0,
             refill_amount=50,
-            expiry_seconds=60,
+            expiry=60,
             tokens_to_consume=5,
         )
         assert isinstance(bucket, SyncLocalTokenBucket)
@@ -60,7 +60,7 @@ class TestSyncTokenBucketFactory:
         assert bucket.initial_tokens == 25
         assert bucket.refill_amount == 50
         assert bucket.max_sleep == 10.0
-        assert bucket.expiry_seconds == 60
+        assert bucket.expiry == 60
         assert bucket.tokens_to_consume == 5
 
     def test_passes_args_to_redis_bucket(self) -> None:
@@ -74,7 +74,7 @@ class TestSyncTokenBucketFactory:
             initial_tokens=25,
             max_sleep=10.0,
             refill_amount=50,
-            expiry_seconds=60,
+            expiry=60,
             tokens_to_consume=5,
         )
         assert isinstance(bucket, SyncRedisTokenBucket)
@@ -84,7 +84,7 @@ class TestSyncTokenBucketFactory:
         assert bucket.initial_tokens == 25
         assert bucket.refill_amount == 50
         assert bucket.max_sleep == 10.0
-        assert bucket.expiry_seconds == 60
+        assert bucket.expiry == 60
         assert bucket.tokens_to_consume == 5
 
     def test_raises_import_error_when_redis_not_available(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -134,7 +134,7 @@ class TestAsyncTokenBucketFactory:
             initial_tokens=25,
             max_sleep=10.0,
             refill_amount=50,
-            expiry_seconds=60,
+            expiry=60,
             tokens_to_consume=5,
         )
         assert isinstance(bucket, AsyncLocalTokenBucket)
@@ -144,7 +144,7 @@ class TestAsyncTokenBucketFactory:
         assert bucket.initial_tokens == 25
         assert bucket.refill_amount == 50
         assert bucket.max_sleep == 10.0
-        assert bucket.expiry_seconds == 60
+        assert bucket.expiry == 60
         assert bucket.tokens_to_consume == 5
 
     def test_passes_kwargs_to_redis_bucket(self) -> None:
@@ -158,7 +158,7 @@ class TestAsyncTokenBucketFactory:
             initial_tokens=25,
             max_sleep=10.0,
             refill_amount=50,
-            expiry_seconds=60,
+            expiry=60,
             tokens_to_consume=5,
         )
         assert isinstance(bucket, AsyncRedisTokenBucket)
@@ -168,7 +168,7 @@ class TestAsyncTokenBucketFactory:
         assert bucket.initial_tokens == 25
         assert bucket.refill_amount == 50
         assert bucket.max_sleep == 10.0
-        assert bucket.expiry_seconds == 60
+        assert bucket.expiry == 60
         assert bucket.tokens_to_consume == 5
 
     def test_raises_import_error_when_redis_not_available(self, monkeypatch: pytest.MonkeyPatch) -> None:

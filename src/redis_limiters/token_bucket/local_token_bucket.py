@@ -20,7 +20,7 @@ class SyncLocalTokenBucket(TokenBucketBase):
         initial_tokens: Starting number of tokens. Defaults to capacity if not specified.
         refill_amount: Number of tokens added per refill.
         max_sleep: Maximum seconds to sleep when rate limited. 0 means no limit - default.
-        expiry_seconds: Redis key expiry time in seconds.
+        expiry: Key expiry time in seconds - currently not implemented for local buckets.
         tokens_to_consume: Number of tokens to consume per operation.
 
     Example:
@@ -34,7 +34,7 @@ class SyncLocalTokenBucket(TokenBucketBase):
 
     # Class-level storage for bucket state (shared across instances)
     # TODO: Currently there's no cleanup of old buckets.
-    # Consider adding periodic cleanup based on expiry_seconds.
+    # Consider adding periodic cleanup based on expiry.
     _buckets: ClassVar[dict[str, dict]] = {}
     _locks: ClassVar[dict[str, Lock]] = {}
     _main_lock: ClassVar[Lock] = Lock()
@@ -78,7 +78,7 @@ class AsyncLocalTokenBucket(TokenBucketBase):
         initial_tokens: Starting number of tokens. Defaults to capacity if not specified.
         refill_amount: Number of tokens added per refill.
         max_sleep: Maximum seconds to sleep when rate limited. 0 means no limit - default.
-        expiry_seconds: Redis key expiry time in seconds.
+        expiry: Key expiry time in seconds - currently not implemented for local buckets.
         tokens_to_consume: Number of tokens to consume per operation.
 
     Example:
@@ -95,7 +95,7 @@ class AsyncLocalTokenBucket(TokenBucketBase):
 
     # Class-level storage for bucket state (shared across instances)
     # TODO: Currently there's no cleanup of old buckets.
-    # Consider adding periodic cleanup based on expiry_seconds.
+    # Consider adding periodic cleanup based on expiry.
     _buckets: ClassVar[dict[str, dict]] = {}
 
     async def __aenter__(self) -> None:

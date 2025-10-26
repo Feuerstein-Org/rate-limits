@@ -50,5 +50,5 @@ def test_redis_cluster(
             expiry=99,  # pyright: ignore
             refill_frequency=99,  # pyright: ignore
             refill_amount=99,  # pyright: ignore
-            connection=connection,
+            connection=connection,  # type: ignore
         )

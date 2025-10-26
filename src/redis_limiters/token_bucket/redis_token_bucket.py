@@ -21,7 +21,7 @@ class SyncRedisTokenBucket(TokenBucketBase, SyncLuaScriptBase):
         initial_tokens: Starting number of tokens. Defaults to capacity if not specified.
         refill_amount: Number of tokens added per refill.
         max_sleep: Maximum seconds to sleep when rate limited. 0 means no limit - default.
-        expiry_seconds: Redis key expiry time in seconds.
+        expiry: Key expiry time in seconds.
         tokens_to_consume: Number of tokens to consume per operation.
 
     Example:
@@ -51,7 +51,7 @@ class SyncRedisTokenBucket(TokenBucketBase, SyncLuaScriptBase):
                     self.initial_tokens or self.capacity,
                     self.refill_frequency,
                     milliseconds,
-                    self.expiry_seconds,
+                    self.expiry,
                     self.tokens_to_consume,
                 ],
             ),
@@ -86,7 +86,7 @@ class AsyncRedisTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
         initial_tokens: Starting number of tokens. Defaults to capacity if not specified.
         refill_amount: Number of tokens added per refill.
         max_sleep: Maximum seconds to sleep when rate limited. 0 means no limit - default.
-        expiry_seconds: Redis key expiry time in seconds.
+        expiry: Key expiry time in seconds.
         tokens_to_consume: Number of tokens to consume per operation.
 
     Example:
@@ -116,7 +116,7 @@ class AsyncRedisTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
                     self.initial_tokens or self.capacity,
                     self.refill_frequency,
                     milliseconds,
-                    self.expiry_seconds,
+                    self.expiry,
                     self.tokens_to_consume,
                 ],
             ),
