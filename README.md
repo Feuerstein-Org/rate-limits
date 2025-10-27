@@ -3,130 +3,92 @@
 A library which regulates traffic, with respect to concurrency or time.
 It implements sync and async context managers for a [semaphore](#semaphore)- and a [token bucket](#token-bucket)-implementation.
 
-The rate limiters are distributed, using Redis, and leverages Lua scripts to
-improve performance and simplify the code. Lua scripts
-run on Redis, and make each implementation fully atomic, while
-also reducing the number of round-trips required.
+The rate limiters can be distributed using Redis, or run locally in-memory for single-process applications.
 
-Use is supported for standalone redis instances, and clusters.
-We currently only support Python 3.11, but can add support for older versions if needed.
+**Redis-based limiters** leverage Lua scripts on Redis, each operation is fully atomic.
+Both standalone Redis instances and clusters are supported with sync and async interfaces.
 
-## NOTE:
-This project was initially forked from [redis-rate-limiters](https://github.com/otovo/redis-rate-limiters) and was mainly created by Sondre Lillebø Gundersen [link](https://github.com/sondrelg).
+**Local limiters** provide thread-safe (for sync) and asyncio-safe (for async) in-memory rate limiting without requiring Redis.
 
-The old project is no longer being worked on and only supported PydanticV1. I plan to add more functionality as well as maintain this fork in the future. It will be published under py-redis-limiters.
+We currently support Python 3.11, 3.12, and 3.13.
 
-Currently I:
- - migrated to PydanticV2
- - migrated from poetry to uv
- - migrated from just to mise en place
- - changed the pre-commit & build process a bit (e.g. remove black/isort in favor of ruff)
- - tidied up a few types as well as add types to tests
- - added a few more tests (I plan to add more)
- - added default values to the rate limits.
+## Features
 
- Note: The README is currently outdated - I will update it later, for now check the releases page.
+### Deployment Options
+- **Local (In-Memory)**: Thread-safe and asyncio-safe rate limiting without Redis dependencies
+  - Perfect for single-process applications, testing, and development
+  - Zero external dependencies required
+- **Redis-Based**: Distributed rate limiting using Redis with Lua scripts
+  - Atomic operations for accuracy in distributed systems
+  - Supports both standalone Redis and Redis Cluster
+  - Scales across multiple processes and servers
+
+### Async & Sync Support
+- Full support for both synchronous and asynchronous code
+- Context manager interface (`with` / `async with`)
+
+### Flexibility & Control
+- **Factory Classes**: `SyncTokenBucket` and `AsyncTokenBucket` automatically choose implementation based on connection
+- **Explicit Classes**: Direct access to `SyncRedisTokenBucket`, `AsyncRedisTokenBucket`, `SyncLocalTokenBucket`, `AsyncLocalTokenBucket`
+- **Configurable Token Consumption**: `tokens_to_consume` parameter for variable-cost operations
+- **Customizable Behavior**: Control capacity, refill rates, expiry, max sleep time, and initial state
 
 ## Installation
 
+### Basic Installation (Local limiters only)
+```bash
+pip install redis-limiters
 ```
-pip install py-redis-limiters
+
+### With Redis Support
+```bash
+pip install redis-limiters[redis]
+```
+Or install Redis separately:
+```bash
+pip install redis-limiters redis
 ```
 
 ## Usage
 
-### Semaphore
-
-The semaphore classes are useful when you have concurrency restrictions;
-e.g., say you're allowed 5 active requests at the time for a given API token.
-
-Beware that the client will block until the Semaphore is acquired,
-or the `max_sleep` limit is exceeded. If the `max_sleep` limit is exceeded, a `MaxSleepExceededError` is raised. Setting `max_sleep` to 0.0 will sleep "endlessly" - this is also the default value.
-
-Here's how you might use the async version:
-
-```python
-import asyncio
-
-from httpx import AsyncClient
-from redis.asyncio import Redis
-
-from limiters import AsyncSemaphore
-
-# Every property besides name has a default like below
-limiter = AsyncSemaphore(
-    name="foo",    # name of the resource you are limiting traffic for
-    capacity=5,    # allow 5 concurrent requests
-    max_sleep=30,  # raise an error if it takes longer than 30 seconds to acquire the semaphore
-    expiry=30,      # set expiry on the semaphore keys in Redis to prevent deadlocks
-    connection=Redis.from_url("redis://localhost:6379"),
-)
-
-async def get_foo():
-    async with AsyncClient() as client:
-        async with limiter:
-            client.get(...)
-
-
-async def main():
-    await asyncio.gather(
-        get_foo() for i in range(100)
-    )
-```
-
-and here is how you might use the sync version:
-
-```python
-import requests
-from redis import Redis
-
-from limiters import SyncSemaphore
-
-
-limiter = SyncSemaphore(
-    name="foo",
-    capacity=5,
-    max_sleep=30,
-    expiry=30,
-    connection=Redis.from_url("redis://localhost:6379"),
-)
-
-def main():
-    with limiter:
-        requests.get(...)
-```
-
 ### Token bucket
 
-The `TocketBucket` classes are useful if you're working with time-based
+The `TokenBucket` classes are useful if you're working with time-based
 rate limits. Say, you are allowed 100 requests per minute, for a given API token.
 
-If the `max_sleep` limit is exceeded, a `MaxSleepExceededError` is raised. Setting `max_sleep` to 0.0 will sleep "endlessly" - this is also the default value.
+If the `max_sleep` limit is exceeded, a `MaxSleepExceededError` is raised. Setting `max_sleep` to 0.0 will sleep "endlessly" - this is also the default value. On the other hand `expiry` is how long the token bucket will persist in Redis without any activity (acquires or releases). You might need to adjust both to your requirements.
 
-Here's how you might use the async version:
+#### Using Local (In-Memory) Token Bucket
+
+The local token bucket doesn't require Redis and runs entirely in-memory.
+Perfect for single-process applications or testing.
+
+> **Note:** The local token bucket implementation does not currently support expiry of bucket state. Buckets persist in memory for the lifetime of the process. If you are creating buckets dynamically (e.g., one bucket per user or per API key), this could lead to unbounded memory growth. Consider using the Redis-based implementation for applications with dynamic bucket creation, or ensure buckets are reused for the same resources.
+
+**Async version:**
 
 ```python
 import asyncio
 
 from httpx import AsyncClient
-from redis.asyncio import Redis
 
-from limiters import AsyncTokenBucket
+from redis_limiters import AsyncTokenBucket
 
-# Every property besides name has a default like below
+# No Redis connection needed - runs in-memory
 limiter = AsyncTokenBucket(
-    name="foo",          # name of the resource you are limiting traffic for
-    capacity=5,          # hold up to 5 tokens
-    refill_frequency=1,  # add tokens every second
-    refill_amount=1,     # add 1 token when refilling
-    max_sleep=0,         # raise an error if there are no free tokens for X seconds, 0 never expires
-    connection=Redis.from_url("redis://localhost:6379"),
+    name="foo",                # name of the resource you are limiting traffic for
+    capacity=5,                # hold up to 5 tokens (default: 5.0)
+    refill_frequency=1,        # add tokens every second (default: 1.0)
+    refill_amount=1,           # add 1 token when refilling (default: 1.0)
+    initial_tokens=None,       # start with full capacity (default: None, which uses capacity)
+    max_sleep=30,              # raise an error if there are no free tokens for X seconds, 0 never expires (default: 30.0)
+    tokens_to_consume=1,       # consume 1 token per request (default: 1.0)
 )
 
 async def get_foo():
     async with AsyncClient() as client:
         async with limiter:
-            client.get(...)
+            await client.get(...)
 
 async def main():
     await asyncio.gather(
@@ -134,27 +96,187 @@ async def main():
     )
 ```
 
-and here is how you might use the sync version:
+**Sync version:**
 
 ```python
 import requests
-from redis import Redis
 
-from limiters import SyncTokenBucket
-
+from redis_limiters import SyncTokenBucket
 
 limiter = SyncTokenBucket(
     name="foo",
     capacity=5,
     refill_frequency=1,
     refill_amount=1,
-    max_sleep=0,
-    connection=Redis.from_url("redis://localhost:6379"),
+    tokens_to_consume=1,
 )
 
 def main():
     with limiter:
         requests.get(...)
+```
+
+#### Using Redis-Based Token Bucket
+
+For distributed rate limiting across multiple processes or servers,
+use the Redis-based implementation by providing a `connection` parameter.
+
+**Async version:**
+
+```python
+import asyncio
+
+from httpx import AsyncClient
+from redis.asyncio import Redis
+
+from redis_limiters import AsyncTokenBucket
+
+# With Redis connection - distributed across processes/servers
+limiter = AsyncTokenBucket(
+    connection=Redis.from_url("redis://localhost:6379"),  # Add Redis connection for distributed limiting
+    name="foo",
+    capacity=5,
+    refill_frequency=1,
+    refill_amount=1,
+    max_sleep=30,
+    expiry=60,                 # set expiry on Redis keys in seconds (default: 60)
+    tokens_to_consume=1,
+)
+
+async def get_foo():
+    async with AsyncClient() as client:
+        async with limiter:
+            await client.get(...)
+
+async def main():
+    await asyncio.gather(
+        get_foo() for i in range(100)
+    )
+```
+
+**Sync version:**
+
+```python
+import requests
+from redis import Redis
+
+from redis_limiters import SyncTokenBucket
+
+
+limiter = SyncTokenBucket(
+    connection=Redis.from_url("redis://localhost:6379"),
+    name="foo",
+    capacity=5,
+    refill_frequency=1,
+    refill_amount=1,
+    max_sleep=30,
+    expiry=60,
+    tokens_to_consume=1,
+)
+
+def main():
+    with limiter:
+        requests.get(...)
+```
+
+### Semaphore
+
+The semaphore classes are useful when you have concurrency restrictions;
+e.g., say you're allowed 5 active requests at the time for a given API token.
+
+**Note:** Currently, only Redis-based semaphores are available. Local (in-memory) semaphore implementation is planned for a future release.
+
+Beware that the client will block until the Semaphore is acquired,
+or the `max_sleep` limit is exceeded. If the `max_sleep` limit is exceeded, a `MaxSleepExceededError` is raised. Setting `max_sleep` to 0.0 will sleep "endlessly" - default is 30 seconds. On the other hand `expiry` is how long the semaphore will persist in Redis without any activity (acquires or releases). You might need to adjust both to your requirements.
+
+Here's how you might use the async version:
+
+```python
+import asyncio
+
+from httpx import AsyncClient
+from redis.asyncio import Redis
+
+from redis_limiters import AsyncSemaphore
+
+# All properties have defaults except name and connection
+limiter = AsyncSemaphore(
+    connection=Redis.from_url("redis://localhost:6379"),
+    name="foo",    # name of the resource you are limiting traffic for
+    capacity=5,    # allow 5 concurrent requests (default: 5)
+    max_sleep=30,  # raise an error if it takes longer than 30 seconds to acquire the semaphore (default: 30.0)
+    expiry=60,     # set expiry on the semaphore keys in Redis to prevent deadlocks (default: 60)
+)
+
+async def get_foo():
+    async with AsyncClient() as client:
+        async with limiter:
+            await client.get(...)
+
+
+async def main():
+    await asyncio.gather(
+        get_foo() for i in range(100)
+    )
+```
+
+and here is how you might use the sync version:
+
+```python
+import requests
+from redis import Redis
+
+from redis_limiters import SyncSemaphore
+
+
+limiter = SyncSemaphore(
+    connection=Redis.from_url("redis://localhost:6379"),
+    name="foo",
+    capacity=5,
+    max_sleep=30,
+    expiry=60,
+)
+
+def main():
+    with limiter:
+        requests.get(...)
+```
+
+#### Using Explicit Implementation Classes
+
+For explicit control over which implementation to use, import the specific classes:
+
+```python
+# Local implementations
+from redis_limiters import SyncLocalTokenBucket, AsyncLocalTokenBucket
+
+# Redis implementations
+from redis_limiters import SyncRedisTokenBucket, AsyncRedisTokenBucket
+
+# Use directly without factory logic
+local_limiter = SyncLocalTokenBucket(name="api", capacity=10)
+redis_limiter = SyncRedisTokenBucket(connection=redis_conn, name="api", capacity=10)
+```
+
+#### Consuming Multiple Tokens Per Request
+
+You can control how many tokens are consumed per operation using the `tokens_to_consume` parameter.
+This is useful when different operations _on the same api_ have different "costs". Note, how the "name" aka is the same between the limiters which will cause the tokens to be shared.
+
+```python
+from redis_limiters import SyncTokenBucket
+
+# Small requests consume 1 token
+small_limiter = SyncTokenBucket(name="api", capacity=100, tokens_to_consume=1)
+
+# Large requests consume 5 tokens
+large_limiter = SyncTokenBucket(name="api", capacity=100, tokens_to_consume=5)
+
+with small_limiter:
+    make_small_request()  # Consumes 1 token
+
+with large_limiter:
+    make_large_request()  # Consumes 5 tokens
 ```
 
 ### Using them as a decorator
@@ -164,22 +286,39 @@ like to limit the rate at which a whole function is run,
 you can create your own, like this:
 
 ```python
-from limiters import AsyncSemaphore
-
+from redis_limiters import AsyncSemaphore
+from redis.asyncio import Redis
 
 # Define a decorator function
-def limit(name, capacity):
+def limit(name, capacity, connection):
   def middle(f):
     async def inner(*args, **kwargs):
-      async with AsyncSemaphore(name=name, capacity=capacity):
+      async with AsyncSemaphore(connection=connection, name=name, capacity=capacity):
+        return await f(*args, **kwargs)
+    return inner
+  return middle
+
+# Or for local token buckets (no Redis needed)
+from redis_limiters import AsyncTokenBucket
+
+def rate_limit(name, capacity):
+  def middle(f):
+    async def inner(*args, **kwargs):
+      async with AsyncTokenBucket(name=name, capacity=capacity):
         return await f(*args, **kwargs)
     return inner
   return middle
 
 
 # Then pass the relevant limiter arguments like this
-@limit(name="foo", capacity=5)
-def fetch_foo(id: UUID) -> Foo:
+@limit(name="foo", capacity=5, connection=Redis.from_url("redis://localhost:6379"))
+async def fetch_foo(id: UUID) -> Foo:
+    ...
+
+# Or with local rate limiting
+@rate_limit(name="bar", capacity=10)
+async def fetch_bar(id: UUID) -> Bar:
+    ...
 ```
 
 ## Contributing
@@ -187,12 +326,13 @@ def fetch_foo(id: UUID) -> Foo:
 Contributions are very welcome. Here's how to get started:
 
 - Clone the repo
-- Install [uv](https://docs.astral.sh/uv/getting-started/installation/)
-- Run `pre-commit install` to set up pre-commit
-- Install [just](https://just.systems/man/en/) and run `just setup`
-  If you prefer not to install just, just take a look at the justfile and
-  run the commands yourself.
+- Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and [mise](https://mise.jdx.dev/)
+- Run `mise run install` to install dependencies
+  If you prefer not to install mise, check the `mise.toml` file and
+  run the commands manually.
 - Make your code changes, with tests
+- Run tests with `mise run test` or `uv run pytest`
+  Note that you will need to first spin up the redis docker containers. This can be done with `mise run test-setup` (and shut down with `mise run test-teardown`) or the full cycle can be run with `mise run test-full`.
 - Commit your changes and open a PR
 
 ## Publishing a new version
@@ -200,12 +340,15 @@ Contributions are very welcome. Here's how to get started:
 To publish a new version:
 
 - Update the package version in the `pyproject.toml`
-- Open [Github releases](https://github.com/Feuerstein-Org/py-redis-limiters/releases)
+- Open [Github releases](https://github.com/Feuerstein-Org/redis-limiters/releases)
 - Press "Draft a new release"
-- Set a tag matching the new version (for example, `v0.1.0`)
+- Set a tag matching the new version (for example, `v0.8.0`)
 - Set the title matching the tag
 - Add some release notes, explaining what has changed
 - Publish
 
-Once the release is published, our [publish workflow](https://github.com/Feuerstein-Org/py-redis-limiters/blob/main/.github/workflows/publish.yaml) should be triggered
+Once the release is published, our [publish workflow](https://github.com/Feuerstein-Org/redis-limiters/blob/main/.github/workflows/publish.yaml) should be triggered
 to push the new version to PyPI.
+
+## Acknowledgment:
+This project was initially forked from [redis-rate-limiters](https://github.com/otovo/redis-rate-limiters) and was mainly created by Sondre Lillebø Gundersen [link](https://github.com/sondrelg). It was no longer maintained and I since rewrote a lot of stuff as well as added a local version of the limiters and new functionality like the initial amount of tokens or how many tokens to consume at once.

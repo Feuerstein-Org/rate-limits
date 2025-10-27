@@ -22,7 +22,7 @@ NonNegativeFloat = Annotated[float, Field(ge=0)]
 class SemaphoreBase(BaseModel):  # noqa: D101 TODO: Fix after local semaphore is added
     name: str
     capacity: PositiveInt = 5
-    expiry: PositiveInt = 30
+    expiry: PositiveInt = 60
     max_sleep: NonNegativeFloat = 30
 
     @property

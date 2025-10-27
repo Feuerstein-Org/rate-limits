@@ -19,7 +19,7 @@ class SyncLocalTokenBucket(TokenBucketBase):
         refill_frequency: Time in seconds between token refills.
         initial_tokens: Starting number of tokens. Defaults to capacity if not specified.
         refill_amount: Number of tokens added per refill.
-        max_sleep: Maximum seconds to sleep when rate limited. 0 means no limit - default.
+        max_sleep: Maximum seconds to sleep when rate limited. 0 means no limit.
         expiry: Key expiry time in seconds - currently not implemented for local buckets.
         tokens_to_consume: Number of tokens to consume per operation.
 
@@ -77,7 +77,7 @@ class AsyncLocalTokenBucket(TokenBucketBase):
         refill_frequency: Time in seconds between token refills.
         initial_tokens: Starting number of tokens. Defaults to capacity if not specified.
         refill_amount: Number of tokens added per refill.
-        max_sleep: Maximum seconds to sleep when rate limited. 0 means no limit - default.
+        max_sleep: Maximum seconds to sleep when rate limited. 0 means no limit.
         expiry: Key expiry time in seconds - currently not implemented for local buckets.
         tokens_to_consume: Number of tokens to consume per operation.
 

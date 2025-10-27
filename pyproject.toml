@@ -33,6 +33,10 @@ classifiers = [
 ]
 dependencies = [
     "pydantic",
+]
+
+[project.optional-dependencies]
+redis = [
     "redis",
 ]
 

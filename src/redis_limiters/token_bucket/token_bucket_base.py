@@ -36,8 +36,8 @@ class TokenBucketBase(BaseModel):
     refill_frequency: PositiveFloat = 1.0
     initial_tokens: NonNegativeFloat | None = None
     refill_amount: PositiveFloat = 1.0
-    max_sleep: NonNegativeFloat = 0.0
-    expiry: PositiveInt = 30  # TODO Add tests for this
+    max_sleep: NonNegativeFloat = 30.0
+    expiry: PositiveInt = 60  # TODO Add tests for this
     tokens_to_consume: PositiveFloat = 1.0
 
     @model_validator(mode="after")

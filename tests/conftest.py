@@ -98,7 +98,7 @@ class SemaphoreConfig:
 
     name: str = field(default_factory=lambda: uuid4().hex[:6])
     capacity: int = 1
-    expiry: int = 30
+    expiry: int = 60
     max_sleep: float = 60.0
 
 
