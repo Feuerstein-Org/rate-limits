@@ -15,7 +15,7 @@ services:
       - "127.0.0.1:6380:6379"
     networks:
       redis:
-        ipv4_address: 10.5.0.2
+        ipv4_address: 10.15.0.2
     command: redis-server --cluster-enabled yes
 
   redis-leader-2:
@@ -25,7 +25,7 @@ services:
       - "127.0.0.1:6381:6379"
     networks:
       redis:
-        ipv4_address: 10.5.0.3
+        ipv4_address: 10.15.0.3
     command: redis-server --cluster-enabled yes
 
   redis-leader-3:
@@ -35,7 +35,7 @@ services:
       - "127.0.0.1:6382:6379"
     networks:
       redis:
-        ipv4_address: 10.5.0.4
+        ipv4_address: 10.15.0.4
     command: redis-server --cluster-enabled yes
 
   redis-follower-1:
@@ -45,7 +45,7 @@ services:
       - "127.0.0.1:6383:6379"
     networks:
       redis:
-        ipv4_address: 10.5.0.5
+        ipv4_address: 10.15.0.5
     command: redis-server --cluster-enabled yes
 
   redis-follower-2:
@@ -55,7 +55,7 @@ services:
       - "127.0.0.1:6384:6379"
     networks:
       redis:
-        ipv4_address: 10.5.0.6
+        ipv4_address: 10.15.0.6
     command: redis-server --cluster-enabled yes
 
   redis-follower-3:
@@ -65,7 +65,7 @@ services:
       - "127.0.0.1:6385:6379"
     networks:
       redis:
-        ipv4_address: 10.5.0.7
+        ipv4_address: 10.15.0.7
     command: redis-server --cluster-enabled yes
 
 networks:
@@ -73,4 +73,4 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 10.5.0.0/16
+        - subnet: 10.15.0.0/16

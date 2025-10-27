@@ -6,7 +6,8 @@
 ---    and how many tokens are left to be assigned for that slot
 --- 2. Works out whether we need to move to the next slot(s), or consume
 ---    tokens from the current one.
---- 3. Saves the token bucket state and returns the slot.
+--- 3. Saves the token bucket state and returns the slot. The state is a
+---    combination of the last slot assigned (timestamp) and the number of tokens left.
 ---
 --- The token bucket implementation is forward looking, so we're really just handing
 --- out the next time there would be tokens in the bucket, and letting the client
@@ -23,7 +24,7 @@ local refill_amount = tonumber(ARGV[2])
 local initial_tokens = tonumber(ARGV[3])
 local time_between_slots = tonumber(ARGV[4]) * 1000 -- Convert to milliseconds
 local milliseconds = tonumber(ARGV[5])
-local expiry_seconds = tonumber(ARGV[6])
+local expiry = tonumber(ARGV[6])
 local tokens_to_consume = tonumber(ARGV[7]) -- Number of tokens to consume
 
 -- Validate that tokens_to_consume doesn't exceed capacity
@@ -82,7 +83,7 @@ end
 tokens = tokens - tokens_to_consume
 
 -- Save updated state and set expiry
-redis.call('SETEX', data_key, expiry_seconds, string.format('%d %d', slot, tokens))
+redis.call('SETEX', data_key, expiry, string.format('%d %d', slot, tokens))
 
 -- Return the slot when the next token(s) will be available
 return slot

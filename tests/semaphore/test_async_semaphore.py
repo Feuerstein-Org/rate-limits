@@ -1,7 +1,9 @@
+"""Tests for asynchronous semaphore implementation."""
+
 import asyncio
 import logging
 import re
-from datetime import datetime
+import time
 from functools import partial
 from typing import Any
 
@@ -15,9 +17,8 @@ from tests.conftest import (
     ASYNC_CONNECTIONS,
     STANDALONE_ASYNC_CONNECTION,
     SemaphoreConfig,
+    async_run,
     async_semaphore_factory,
-    delta_to_seconds,
-    run,
 )
 
 logger = logging.getLogger(__name__)
@@ -49,31 +50,36 @@ async def test_semaphore_runtimes(
     always take 1 >= seconds to run those.
     """
     connection = connection_factory()
+    if connection is None:  # TODO: Add support for in-memory semaphore
+        pytest.skip("In-memory connection does not support semaphore")
     config = SemaphoreConfig(capacity=capacity)
     tasks = [
         asyncio.create_task(
-            run(
+            async_run(
                 async_semaphore_factory(connection=connection, config=config),
                 sleep_duration=sleep,
             )
         )
         for _ in range(n)
     ]
-    before = datetime.now()
+    start = time.perf_counter()
     await asyncio.gather(*tasks)
-    assert timeout <= delta_to_seconds(datetime.now() - before)
+    assert timeout <= time.perf_counter() - start
 
 
 @pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
 async def test_sleep_is_non_blocking(connection_factory: ConnectionFactory) -> None:
     connection = connection_factory()
 
+    if connection is None:  # TODO: Add support for in-memory semaphore
+        pytest.skip("In-memory connection does not support semaphore")
+
     async def _sleep(duration: float) -> None:
         await asyncio.sleep(duration)
 
     tasks = [
         # Create task to acquire a semaphore - should take less than 1 second
-        asyncio.create_task(run(async_semaphore_factory(connection=connection), 0)),
+        asyncio.create_task(async_run(async_semaphore_factory(connection=connection), 0)),
         # And create another task to normal asyncio sleep for 1 second
         asyncio.create_task(_sleep(1)),
     ]
@@ -84,7 +90,10 @@ async def test_sleep_is_non_blocking(connection_factory: ConnectionFactory) -> N
 
 @pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
 def test_repr(connection_factory: ConnectionFactory) -> None:
-    semaphore = async_semaphore_factory(connection=connection_factory(), config=SemaphoreConfig(name="test"))
+    connection = connection_factory()
+    if connection is None:  # TODO: Add support for in-memory semaphore
+        pytest.skip("In-memory connection does not support semaphore")
+    semaphore = async_semaphore_factory(connection=connection, config=SemaphoreConfig(name="test"))
     assert re.match(r"Semaphore instance for queue {limiter}:semaphore:test", str(semaphore))
 
 
@@ -113,16 +122,22 @@ def test_repr(connection_factory: ConnectionFactory) -> None:
 def test_init_types(
     connection_factory: ConnectionFactory, config_params: dict[str, Any], error: type[ValidationError] | None
 ) -> None:
+    connection = connection_factory()
+    if connection is None:  # TODO: Add support for in-memory semaphore
+        pytest.skip("In-memory connection does not support semaphore")
     if error:
         with pytest.raises(error):
-            async_semaphore_factory(connection=connection_factory(), config=SemaphoreConfig(**config_params))
+            async_semaphore_factory(connection=connection, config=SemaphoreConfig(**config_params))
     else:
-        async_semaphore_factory(connection=connection_factory(), config=SemaphoreConfig(**config_params))
+        async_semaphore_factory(connection=connection, config=SemaphoreConfig(**config_params))
 
 
 @pytest.mark.filterwarnings("ignore::RuntimeWarning")
 @pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
 async def test_max_sleep(connection_factory: ConnectionFactory) -> None:
+    connection = connection_factory()
+    if connection is None:  # TODO: Add support for in-memory semaphore
+        pytest.skip("In-memory connection does not support semaphore")
     config = SemaphoreConfig(max_sleep=1.0)
     with pytest.raises(
         MaxSleepExceededError,
@@ -131,7 +146,7 @@ async def test_max_sleep(connection_factory: ConnectionFactory) -> None:
         await asyncio.gather(
             *[
                 asyncio.create_task(
-                    run(
+                    async_run(
                         async_semaphore_factory(connection=connection_factory(), config=config),
                         1,
                     )
@@ -147,12 +162,12 @@ async def test_redis_instructions(connection_factory: partial[Redis]) -> None:
     config = SemaphoreConfig(expiry=1)
 
     # Run once to warm up - otherwise tests get flaky
-    await run(async_semaphore_factory(connection=connection, config=config), 0)
+    await async_run(async_semaphore_factory(connection=connection, config=config), 0)
 
     m: Monitor
     async with connection.monitor() as m:
         await m.connect()
-        await run(async_semaphore_factory(connection=connection, config=config), 0)
+        await async_run(async_semaphore_factory(connection=connection, config=config), 0)
         assert m.connection is not None
 
         # We expect the eval to generate these exact calls

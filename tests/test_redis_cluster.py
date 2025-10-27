@@ -1,3 +1,5 @@
+"""Test Redis Cluster and Standalone connections with all limiters."""
+
 import asyncio
 from typing import cast
 
@@ -7,23 +9,24 @@ from redis.asyncio.cluster import RedisCluster as AsyncRedisCluster
 from redis.client import Redis as SyncRedis
 from redis.cluster import RedisCluster as SyncRedisCluster
 
-from redis_limiters import AsyncSemaphore, AsyncTokenBucket, SyncSemaphore, SyncTokenBucket
+from redis_limiters import AsyncRedisTokenBucket, AsyncSemaphore, SyncRedisTokenBucket, SyncSemaphore
 
 
 @pytest.mark.parametrize(
     "klass,port,limiters",
     [
-        (SyncRedis, 6378, [SyncSemaphore, SyncTokenBucket]),
-        (SyncRedisCluster, 6380, [SyncSemaphore, SyncTokenBucket]),
-        (AsyncRedis, 6378, [AsyncSemaphore, AsyncTokenBucket]),
-        (AsyncRedisCluster, 6380, [AsyncSemaphore, AsyncTokenBucket]),
+        (SyncRedis, 6378, [SyncSemaphore, SyncRedisTokenBucket]),
+        (SyncRedisCluster, 6380, [SyncSemaphore, SyncRedisTokenBucket]),
+        (AsyncRedis, 6378, [AsyncSemaphore, AsyncRedisTokenBucket]),
+        (AsyncRedisCluster, 6380, [AsyncSemaphore, AsyncRedisTokenBucket]),
     ],
 )
 def test_redis_cluster(
     klass: SyncRedis | AsyncRedis,
     port: int,
-    limiters: list[type[SyncTokenBucket | AsyncTokenBucket | SyncSemaphore | AsyncSemaphore]],
+    limiters: list[type[SyncRedisTokenBucket | AsyncRedisTokenBucket | SyncSemaphore | AsyncSemaphore]],
 ) -> None:
+    """Test that Redis Cluster and Standalone connections work with all limiters."""
     connection = klass.from_url(f"redis://127.0.0.1:{port}")
     if hasattr(connection, "__aenter__"):
         # Async connection
@@ -38,7 +41,7 @@ def test_redis_cluster(
         connection.info()
 
     # Test that all limiters can be instantiated with the connection
-    # Ignore statements for properties that are unique in async and sync versions
+    # Ignore statements for properties that are unique in semaphore vs token bucket
     for limiter in limiters:
         limiter(
             name="test",
@@ -47,5 +50,5 @@ def test_redis_cluster(
             expiry=99,  # pyright: ignore
             refill_frequency=99,  # pyright: ignore
             refill_amount=99,  # pyright: ignore
-            connection=connection,
+            connection=connection,  # type: ignore
         )

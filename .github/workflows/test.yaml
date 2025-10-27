@@ -8,8 +8,6 @@ on:
 
 env:
   MISE_OVERRIDE_CONFIG_FILENAMES: "mise.ci.toml"
-  REDIS_CLI_VERSION: "8.2.0"
-  # Issue opened for mise-redis-cli: https://github.com/mise-plugins/mise-redis-cli/issues/4
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -37,11 +35,12 @@ jobs:
       - uses: jdx/mise-action@v2
         with:
           cache: true
-      - name: Install dependencies
+      - name: Install Redis CLI
         run: |
-          mise install redis-cli@${{ env.REDIS_CLI_VERSION }}
-          mise use redis-cli
-          mise run install-uv-ci
+          sudo apt-get update
+          sudo apt-get install -y redis-tools
+      - name: Install dependencies
+        run: mise run install-uv-ci
 
       - name: Override Python version
         run: mise use python@${{ matrix.python-version }}
