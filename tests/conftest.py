@@ -1,4 +1,4 @@
-"""Common test fixtures and utilities for redis_limiters tests."""
+"""Common test fixtures and utilities for steindamm tests."""
 
 import asyncio
 import logging
@@ -14,7 +14,7 @@ from redis.asyncio.cluster import RedisCluster as AsyncRedisCluster
 from redis.client import Redis as SyncRedis
 from redis.cluster import RedisCluster as SyncRedisCluster
 
-from redis_limiters import (
+from steindamm import (
     AsyncLocalTokenBucket,
     AsyncRedisTokenBucket,
     AsyncSemaphore,

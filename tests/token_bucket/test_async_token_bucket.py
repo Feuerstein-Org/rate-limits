@@ -10,7 +10,7 @@ import pytest
 from redis.asyncio import Redis
 from redis.asyncio.cluster import RedisCluster
 
-from redis_limiters import MaxSleepExceededError
+from steindamm import MaxSleepExceededError
 from tests.conftest import (
     ASYNC_CONNECTIONS,
     IN_MEMORY,

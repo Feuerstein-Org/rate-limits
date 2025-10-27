@@ -2,7 +2,7 @@
 
 import pytest
 
-from redis_limiters import (
+from steindamm import (
     AsyncLocalTokenBucket,
     AsyncRedisTokenBucket,
     AsyncTokenBucket,
@@ -90,14 +90,14 @@ class TestSyncTokenBucketFactory:
     def test_raises_import_error_when_redis_not_available(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that ImportError is raised when redis package is not available."""
         # Mock redis as unavailable
-        import redis_limiters.token_bucket.token_bucket as tb_module
+        import steindamm.token_bucket.token_bucket as tb_module
 
         monkeypatch.setattr(tb_module, "REDIS_AVAILABLE", False)
 
         connection = STANDALONE_SYNC_CONNECTION()
         with pytest.raises(
             ImportError,
-            match=r"Redis support requires the 'redis' package\. Install it with: pip install redis-limiters\[redis\]",
+            match=r"Redis support requires the 'redis' package\. Install it with: pip install steindamm\[redis\]",
         ):
             SyncTokenBucket(connection=connection, name="test", capacity=10)
 
@@ -174,13 +174,13 @@ class TestAsyncTokenBucketFactory:
     def test_raises_import_error_when_redis_not_available(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that ImportError is raised when redis package is not available."""
         # Mock redis as unavailable
-        import redis_limiters.token_bucket.token_bucket as tb_module
+        import steindamm.token_bucket.token_bucket as tb_module
 
         monkeypatch.setattr(tb_module, "REDIS_AVAILABLE", False)
 
         connection = STANDALONE_ASYNC_CONNECTION()
         with pytest.raises(
             ImportError,
-            match=r"Redis support requires the 'redis' package\. Install it with: pip install redis-limiters\[redis\]",
+            match=r"Redis support requires the 'redis' package\. Install it with: pip install steindamm\[redis\]",
         ):
             AsyncTokenBucket(connection=connection, name="test", capacity=10)

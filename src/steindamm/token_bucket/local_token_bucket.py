@@ -6,7 +6,7 @@ from threading import Lock
 from types import TracebackType
 from typing import ClassVar
 
-from redis_limiters.token_bucket.token_bucket_base import TokenBucketBase
+from steindamm.token_bucket.token_bucket_base import TokenBucketBase
 
 
 class SyncLocalTokenBucket(TokenBucketBase):

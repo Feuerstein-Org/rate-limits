@@ -13,7 +13,7 @@ You can also use the respective bucket classes directly.
 
 from typing import TYPE_CHECKING
 
-from redis_limiters import AsyncLocalTokenBucket, SyncLocalTokenBucket
+from steindamm import AsyncLocalTokenBucket, SyncLocalTokenBucket
 
 if TYPE_CHECKING:
     from redis import Redis as SyncRedis
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from redis.asyncio.cluster import RedisCluster as AsyncRedisCluster
     from redis.cluster import RedisCluster as SyncRedisCluster
 
-    from redis_limiters.token_bucket.redis_token_bucket import AsyncRedisTokenBucket, SyncRedisTokenBucket
+    from steindamm.token_bucket.redis_token_bucket import AsyncRedisTokenBucket, SyncRedisTokenBucket
 
 
 # Runtime availability check
@@ -92,10 +92,10 @@ class SyncTokenBucket:
         if connection is not None:
             if not REDIS_AVAILABLE:
                 raise ImportError(
-                    "Redis support requires the 'redis' package. Install it with: pip install redis-limiters[redis]"
+                    "Redis support requires the 'redis' package. Install it with: pip install steindamm[redis]"
                 )
             # Import only when needed to avoid requiring redis at module load time
-            from redis_limiters.token_bucket.redis_token_bucket import SyncRedisTokenBucket
+            from steindamm.token_bucket.redis_token_bucket import SyncRedisTokenBucket
 
             return SyncRedisTokenBucket(
                 connection=connection,
@@ -180,10 +180,10 @@ class AsyncTokenBucket:
         if connection is not None:
             if not REDIS_AVAILABLE:
                 raise ImportError(
-                    "Redis support requires the 'redis' package. Install it with: pip install redis-limiters[redis]"
+                    "Redis support requires the 'redis' package. Install it with: pip install steindamm[redis]"
                 )
             # Import only when needed to avoid requiring redis at module load time
-            from redis_limiters.token_bucket.redis_token_bucket import AsyncRedisTokenBucket
+            from steindamm.token_bucket.redis_token_bucket import AsyncRedisTokenBucket
 
             return AsyncRedisTokenBucket(
                 connection=connection,

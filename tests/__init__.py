@@ -1,5 +1,5 @@
 """
-Unit tests for the redis-limiters package.
+Unit tests for the steindamm package.
 
 These tests require a Redis server running locally on port 6379 for standalone Redis tests
 and a Redis Cluster running locally on port 6380 for cluster tests.

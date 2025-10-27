@@ -12,7 +12,7 @@ from typing import Annotated, Self
 
 from pydantic import BaseModel, Field, model_validator
 
-from redis_limiters import MaxSleepExceededError
+from steindamm import MaxSleepExceededError
 
 # TODO: Shouldn't this be in a more global file?
 logger = getLogger(__name__)

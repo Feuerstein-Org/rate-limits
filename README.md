@@ -1,4 +1,4 @@
-# Python Redis Limiters
+# Steindamm
 
 A library which regulates traffic, with respect to concurrency or time.
 It implements sync and async context managers for a [semaphore](#semaphore)- and a [token bucket](#token-bucket)-implementation.
@@ -37,16 +37,16 @@ We currently support Python 3.11, 3.12, and 3.13.
 
 ### Basic Installation (Local limiters only)
 ```bash
-pip install redis-limiters
+pip install steindamm
 ```
 
 ### With Redis Support
 ```bash
-pip install redis-limiters[redis]
+pip install steindamm[redis]
 ```
 Or install Redis separately:
 ```bash
-pip install redis-limiters redis
+pip install steindamm redis
 ```
 
 ## Usage
@@ -72,7 +72,7 @@ import asyncio
 
 from httpx import AsyncClient
 
-from redis_limiters import AsyncTokenBucket
+from steindamm import AsyncTokenBucket
 
 # No Redis connection needed - runs in-memory
 limiter = AsyncTokenBucket(
@@ -101,7 +101,7 @@ async def main():
 ```python
 import requests
 
-from redis_limiters import SyncTokenBucket
+from steindamm import SyncTokenBucket
 
 limiter = SyncTokenBucket(
     name="foo",
@@ -129,7 +129,7 @@ import asyncio
 from httpx import AsyncClient
 from redis.asyncio import Redis
 
-from redis_limiters import AsyncTokenBucket
+from steindamm import AsyncTokenBucket
 
 # With Redis connection - distributed across processes/servers
 limiter = AsyncTokenBucket(
@@ -160,7 +160,7 @@ async def main():
 import requests
 from redis import Redis
 
-from redis_limiters import SyncTokenBucket
+from steindamm import SyncTokenBucket
 
 
 limiter = SyncTokenBucket(
@@ -197,7 +197,7 @@ import asyncio
 from httpx import AsyncClient
 from redis.asyncio import Redis
 
-from redis_limiters import AsyncSemaphore
+from steindamm import AsyncSemaphore
 
 # All properties have defaults except name and connection
 limiter = AsyncSemaphore(
@@ -226,7 +226,7 @@ and here is how you might use the sync version:
 import requests
 from redis import Redis
 
-from redis_limiters import SyncSemaphore
+from steindamm import SyncSemaphore
 
 
 limiter = SyncSemaphore(
@@ -248,10 +248,10 @@ For explicit control over which implementation to use, import the specific class
 
 ```python
 # Local implementations
-from redis_limiters import SyncLocalTokenBucket, AsyncLocalTokenBucket
+from steindamm import SyncLocalTokenBucket, AsyncLocalTokenBucket
 
 # Redis implementations
-from redis_limiters import SyncRedisTokenBucket, AsyncRedisTokenBucket
+from steindamm import SyncRedisTokenBucket, AsyncRedisTokenBucket
 
 # Use directly without factory logic
 local_limiter = SyncLocalTokenBucket(name="api", capacity=10)
@@ -264,7 +264,7 @@ You can control how many tokens are consumed per operation using the `tokens_to_
 This is useful when different operations _on the same api_ have different "costs". Note, how the "name" aka is the same between the limiters which will cause the tokens to be shared.
 
 ```python
-from redis_limiters import SyncTokenBucket
+from steindamm import SyncTokenBucket
 
 # Small requests consume 1 token
 small_limiter = SyncTokenBucket(name="api", capacity=100, tokens_to_consume=1)
@@ -286,7 +286,7 @@ like to limit the rate at which a whole function is run,
 you can create your own, like this:
 
 ```python
-from redis_limiters import AsyncSemaphore
+from steindamm import AsyncSemaphore
 from redis.asyncio import Redis
 
 # Define a decorator function
@@ -299,7 +299,7 @@ def limit(name, capacity, connection):
   return middle
 
 # Or for local token buckets (no Redis needed)
-from redis_limiters import AsyncTokenBucket
+from steindamm import AsyncTokenBucket
 
 def rate_limit(name, capacity):
   def middle(f):
@@ -340,14 +340,14 @@ Contributions are very welcome. Here's how to get started:
 To publish a new version:
 
 - Update the package version in the `pyproject.toml`
-- Open [Github releases](https://github.com/Feuerstein-Org/redis-limiters/releases)
+- Open [Github releases](https://github.com/Feuerstein-Org/steindamm/releases)
 - Press "Draft a new release"
 - Set a tag matching the new version (for example, `v0.8.0`)
 - Set the title matching the tag
 - Add some release notes, explaining what has changed
 - Publish
 
-Once the release is published, our [publish workflow](https://github.com/Feuerstein-Org/redis-limiters/blob/main/.github/workflows/publish.yaml) should be triggered
+Once the release is published, our [publish workflow](https://github.com/Feuerstein-Org/steindamm/blob/main/.github/workflows/publish.yaml) should be triggered
 to push the new version to PyPI.
 
 ## Acknowledgment:

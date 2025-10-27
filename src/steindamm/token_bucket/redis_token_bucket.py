@@ -5,8 +5,8 @@ import time
 from types import TracebackType
 from typing import ClassVar, cast
 
-from redis_limiters.base import AsyncLuaScriptBase, SyncLuaScriptBase
-from redis_limiters.token_bucket.token_bucket_base import TokenBucketBase, get_current_time_ms
+from steindamm.base import AsyncLuaScriptBase, SyncLuaScriptBase
+from steindamm.token_bucket.token_bucket_base import TokenBucketBase, get_current_time_ms
 
 
 class SyncRedisTokenBucket(TokenBucketBase, SyncLuaScriptBase):

@@ -9,7 +9,7 @@ import pytest
 from redis import Redis
 from redis.cluster import RedisCluster
 
-from redis_limiters import MaxSleepExceededError
+from steindamm import MaxSleepExceededError
 from tests.conftest import SYNC_CONNECTIONS, SemaphoreConfig, sync_semaphore_factory
 
 ConnectionFactory = partial[Redis] | partial[RedisCluster]

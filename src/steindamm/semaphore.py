@@ -9,8 +9,8 @@ from pydantic import BaseModel, Field
 from redis.asyncio.client import Pipeline
 from redis.asyncio.cluster import ClusterPipeline
 
-from redis_limiters import MaxSleepExceededError
-from redis_limiters.base import AsyncLuaScriptBase, SyncLuaScriptBase
+from steindamm import MaxSleepExceededError
+from steindamm.base import AsyncLuaScriptBase, SyncLuaScriptBase
 
 logger = getLogger(__name__)
 

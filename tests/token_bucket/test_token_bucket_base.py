@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from redis_limiters.token_bucket.token_bucket_base import TokenBucketBase
+from steindamm.token_bucket.token_bucket_base import TokenBucketBase
 
 
 @pytest.mark.parametrize(

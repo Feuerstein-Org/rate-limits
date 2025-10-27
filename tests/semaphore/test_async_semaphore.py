@@ -12,7 +12,7 @@ from pydantic import ValidationError
 from redis.asyncio.client import Monitor, Redis
 from redis.asyncio.cluster import RedisCluster
 
-from redis_limiters import MaxSleepExceededError
+from steindamm import MaxSleepExceededError
 from tests.conftest import (
     ASYNC_CONNECTIONS,
     STANDALONE_ASYNC_CONNECTION,

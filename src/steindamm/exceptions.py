@@ -1,4 +1,4 @@
-"""Exceptions for redis_limiters package."""
+"""Exceptions for steindamm package."""
 
 
 class MaxSleepExceededError(Exception):

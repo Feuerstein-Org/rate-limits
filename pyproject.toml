@@ -1,7 +1,7 @@
 [project]
-name = "redis-limiters"
-version = "0.7.0"
-description = "Python rate limiters backed by Redis"
+name = "steindamm"
+version = "0.8.0"
+description = "Distributed token bucket and semphore"
 authors = [{ name = "Emil Aliyev", email = "ea01052002@gmail.com" }, { name = "Sondre Lillebø Gundersen", email = "sondrelg@live.no" }]
 requires-python = ">=3.11"
 readme = "README.md"
@@ -13,6 +13,8 @@ keywords = [
     "rate",
     "limiting",
     "limiters",
+    "token-bucket",
+    "semaphore"
 ]
 classifiers = [
     "Environment :: Web Environment",
@@ -41,8 +43,8 @@ redis = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Feuerstein-Org/redis-limiters"
-Repository = "https://github.com/Feuerstein-Org/redis-limiters"
+Homepage = "https://github.com/Feuerstein-Org/steindamm"
+Repository = "https://github.com/Feuerstein-Org/steindamm"
 
 [dependency-groups]
 dev = [
@@ -51,6 +53,7 @@ dev = [
     "coverage",
     "pytest",
     "pytest-asyncio",
+    "redis",
     "types-redis",
     "ruff",
     "pyright[nodejs]",

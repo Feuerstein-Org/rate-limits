@@ -9,7 +9,7 @@ from redis.asyncio.cluster import RedisCluster as AsyncRedisCluster
 from redis.client import Redis as SyncRedis
 from redis.cluster import RedisCluster as SyncRedisCluster
 
-from redis_limiters import AsyncRedisTokenBucket, AsyncSemaphore, SyncRedisTokenBucket, SyncSemaphore
+from steindamm import AsyncRedisTokenBucket, AsyncSemaphore, SyncRedisTokenBucket, SyncSemaphore
 
 
 @pytest.mark.parametrize(

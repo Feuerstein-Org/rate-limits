@@ -643,54 +643,6 @@ wheels = [
 ]
 
 [[package]]
-name = "redis-limiters"
-version = "0.7.0"
-source = { editable = "." }
-dependencies = [
-    { name = "pydantic" },
-]
-
-[package.optional-dependencies]
-redis = [
-    { name = "redis" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "coverage" },
-    { name = "pre-commit" },
-    { name = "printf-log-formatter" },
-    { name = "pyright", extra = ["nodejs"] },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-randomly" },
-    { name = "pytest-socket" },
-    { name = "ruff" },
-    { name = "types-redis" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "pydantic" },
-    { name = "redis", marker = "extra == 'redis'" },
-]
-provides-extras = ["redis"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "coverage" },
-    { name = "pre-commit" },
-    { name = "printf-log-formatter" },
-    { name = "pyright", extras = ["nodejs"] },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-randomly" },
-    { name = "pytest-socket" },
-    { name = "ruff" },
-    { name = "types-redis" },
-]
-
-[[package]]
 name = "ruff"
 version = "0.14.2"
 source = { registry = "https://pypi.org/simple" }
@@ -714,6 +666,56 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/8d/35/3654a973ebe5b32e1fd4a08ed2d46755af7267da7ac710d97420d7b8657d/ruff-0.14.2-py3-none-win32.whl", hash = "sha256:41775927d287685e08f48d8eb3f765625ab0b7042cc9377e20e64f4eb0056ee9", size = 12415318, upload-time = "2025-10-23T19:36:53.961Z" },
     { url = "https://files.pythonhosted.org/packages/71/30/3758bcf9e0b6a4193a6f51abf84254aba00887dfa8c20aba18aa366c5f57/ruff-0.14.2-py3-none-win_amd64.whl", hash = "sha256:0df3424aa5c3c08b34ed8ce099df1021e3adaca6e90229273496b839e5a7e1af", size = 13565279, upload-time = "2025-10-23T19:36:56.578Z" },
     { url = "https://files.pythonhosted.org/packages/2e/5d/aa883766f8ef9ffbe6aa24f7192fb71632f31a30e77eb39aa2b0dc4290ac/ruff-0.14.2-py3-none-win_arm64.whl", hash = "sha256:ea9d635e83ba21569fbacda7e78afbfeb94911c9434aff06192d9bc23fd5495a", size = 12554956, upload-time = "2025-10-23T19:36:58.714Z" },
+]
+
+[[package]]
+name = "steindamm"
+version = "0.8.0"
+source = { editable = "." }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.optional-dependencies]
+redis = [
+    { name = "redis" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "coverage" },
+    { name = "pre-commit" },
+    { name = "printf-log-formatter" },
+    { name = "pyright", extra = ["nodejs"] },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-randomly" },
+    { name = "pytest-socket" },
+    { name = "redis" },
+    { name = "ruff" },
+    { name = "types-redis" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic" },
+    { name = "redis", marker = "extra == 'redis'" },
+]
+provides-extras = ["redis"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "coverage" },
+    { name = "pre-commit" },
+    { name = "printf-log-formatter" },
+    { name = "pyright", extras = ["nodejs"] },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-randomly" },
+    { name = "pytest-socket" },
+    { name = "redis" },
+    { name = "ruff" },
+    { name = "types-redis" },
 ]
 
 [[package]]
