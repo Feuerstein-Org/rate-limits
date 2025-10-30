@@ -41,21 +41,31 @@ class SyncRedisTokenBucket(TokenBucketBase, SyncLuaScriptBase):
         """Acquire token(s) from the token bucket and sleep until they are available."""
         # Retrieve timestamp for when to wake up from Redis Lua script
         milliseconds = get_current_time_ms()
-        timestamp: int = cast(
-            int,
-            self.script(
-                keys=[self.key],
-                args=[
-                    self.capacity,
-                    self.refill_amount,
-                    self.initial_tokens or self.capacity,
-                    self.refill_frequency,
-                    milliseconds,
-                    self.expiry,
-                    self.tokens_to_consume,
-                ],
-            ),
-        )
+        try:
+            timestamp: int = cast(
+                int,
+                self.script(
+                    keys=[self.key],
+                    args=[
+                        self.capacity,
+                        self.refill_amount,
+                        self.initial_tokens or self.capacity,
+                        self.refill_frequency,
+                        milliseconds,
+                        self.expiry,
+                        self.tokens_to_consume,
+                        self.max_sleep,  # ADDED: Pass max_sleep to Lua script
+                        self.name,
+                    ],
+                ),
+            )
+        except Exception as e:
+            # Handle Redis error replies from Lua script
+            if "Rate limit exceeded" in str(e):
+                from steindamm import MaxSleepExceededError
+
+                raise MaxSleepExceededError(str(e)) from e
+            raise
 
         # Estimate sleep time
         sleep_time = self.parse_timestamp(timestamp)
@@ -106,21 +116,31 @@ class AsyncRedisTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
         """Acquire token(s) from the token bucket and sleep until they are available."""
         # Retrieve timestamp for when to wake up from Redis Lua script
         milliseconds = get_current_time_ms()
-        timestamp: int = cast(
-            int,
-            await self.script(
-                keys=[self.key],
-                args=[
-                    self.capacity,
-                    self.refill_amount,
-                    self.initial_tokens or self.capacity,
-                    self.refill_frequency,
-                    milliseconds,
-                    self.expiry,
-                    self.tokens_to_consume,
-                ],
-            ),
-        )
+        try:
+            timestamp: int = cast(
+                int,
+                await self.script(
+                    keys=[self.key],
+                    args=[
+                        self.capacity,
+                        self.refill_amount,
+                        self.initial_tokens or self.capacity,
+                        self.refill_frequency,
+                        milliseconds,
+                        self.expiry,
+                        self.tokens_to_consume,
+                        self.max_sleep,  # ADDED: Pass max_sleep to Lua script
+                        self.name,
+                    ],
+                ),
+            )
+        except Exception as e:
+            # Handle Redis error replies from Lua script
+            if "Rate limit exceeded" in str(e):
+                from steindamm import MaxSleepExceededError
+
+                raise MaxSleepExceededError(str(e)) from e
+            raise
 
         # Estimate sleep time
         sleep_time = self.parse_timestamp(timestamp)

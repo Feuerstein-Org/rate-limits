@@ -26,6 +26,9 @@ local time_between_slots = tonumber(ARGV[4]) * 1000 -- Convert to milliseconds
 local milliseconds = tonumber(ARGV[5])
 local expiry = tonumber(ARGV[6])
 local tokens_to_consume = tonumber(ARGV[7]) -- Number of tokens to consume
+local max_sleep_ms = tonumber(ARGV[8]) * 1000 -- Convert to milliseconds
+local bucket_name = ARGV[9]
+
 
 -- Validate that tokens_to_consume doesn't exceed capacity
 if tokens_to_consume > capacity then
@@ -77,6 +80,13 @@ if tokens < tokens_to_consume then
     tokens = tokens + needed_slots * refill_amount
     -- Clamp tokens to capacity
     tokens = math.min(tokens, capacity)
+end
+
+-- CRITICAL: Validate max_sleep BEFORE consuming tokens
+local required_sleep = math.max(0, slot - now)
+-- Check if sleep would exceed max_sleep (if max_sleep > 0)
+if max_sleep_ms > 0 and required_sleep > max_sleep_ms then
+    return redis.error_reply("Rate limit exceeded for '" .. bucket_name .. "': would sleep " .. string.format("%.2f", required_sleep/1000) .. "s but max_sleep is " .. (max_sleep_ms/1000) .. "s. Consider increasing capacity (" .. string.format("%.1f", capacity) .. ") or refill_rate (" .. string.format("%.1f", refill_amount) .. "/" .. string.format("%.1f", time_between_slots/1000) .. "s).")
 end
 
 -- Consume tokens
