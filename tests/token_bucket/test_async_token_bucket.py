@@ -231,7 +231,12 @@ async def test_initial_tokens(
 async def test_dynamic_tokens_to_consume(connection_factory: ConnectionFactory) -> None:
     """Test that tokens_to_consume can be passed dynamically when using the async context manager."""
     config = MockTokenBucketConfig(capacity=10.0, refill_frequency=1.0, refill_amount=2.0, tokens_to_consume=1.0)
-    bucket = async_tokenbucket_factory(connection=connection_factory(), config=config)
+    connection = connection_factory()
+    bucket = async_tokenbucket_factory(connection=connection, config=config)
+    warmup_config = MockTokenBucketConfig(name="warmup_bucket_new")
+    warmup_bucket = async_tokenbucket_factory(connection=connection, config=warmup_config)
+    async with warmup_bucket:
+        pass
 
     start = time.perf_counter()
 
