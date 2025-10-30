@@ -48,11 +48,41 @@ class SyncLocalTokenBucket(TokenBucketBase):
                     self._locks[self.key] = Lock()
         return self._locks[self.key]
 
+    def __call__(self, tokens_to_consume: float | None = None) -> "SyncLocalTokenBucket":
+        """
+        Context manager with custom tokens_to_consume value.
+
+        Args:
+            tokens_to_consume: Number of tokens to consume. If None, uses the instance's
+                tokens_to_consume value set during initialization.
+
+        Example:
+            .. code-block:: python
+
+                bucket = SyncLocalTokenBucket(name="api", capacity=10)
+                # Consume 1 token (default)
+                with bucket:
+                    make_small_request()
+                # Consume 5 tokens
+                with bucket(5):
+                    make_large_request()
+
+        """
+        self._temp_tokens_to_consume = tokens_to_consume
+        return self
+
     def __enter__(self) -> None:
         """Acquire token(s) from the token bucket and sleep until they are available."""
+        # Use temporary value if set by __call__, otherwise use instance default
+        tokens_needed = (
+            self._temp_tokens_to_consume if self._temp_tokens_to_consume is not None else self.tokens_to_consume
+        )
+        # Clear temporary value
+        self._temp_tokens_to_consume = None
+
         # Execute token bucket logic with thread safety
         with self._get_lock():
-            timestamp = self.execute_local_token_bucket_logic(self._buckets)
+            timestamp = self.execute_local_token_bucket_logic(self._buckets, tokens_needed)
 
         # Parse timestamp and sleep
         sleep_time = self.parse_timestamp(timestamp)
@@ -98,12 +128,42 @@ class AsyncLocalTokenBucket(TokenBucketBase):
     # Consider adding periodic cleanup based on expiry.
     _buckets: ClassVar[dict[str, dict]] = {}
 
+    def __call__(self, tokens_to_consume: float | None = None) -> "AsyncLocalTokenBucket":
+        """
+        Context manager with custom tokens_to_consume value.
+
+        Args:
+            tokens_to_consume: Number of tokens to consume. If None, uses the instance's
+                tokens_to_consume value set during initialization.
+
+        Example:
+            .. code-block:: python
+
+                bucket = AsyncRedisTokenBucket(connection=redis_conn, name="api", capacity=10)
+                # Consume 1 token (default)
+                async with bucket:
+                    await make_small_request()
+                # Consume 5 tokens
+                async with bucket(5):
+                    await make_large_request()
+
+        """
+        self._temp_tokens_to_consume = tokens_to_consume
+        return self
+
     async def __aenter__(self) -> None:
         """Acquire token(s) from the token bucket and sleep until they are available."""
+        # Use temporary value if set by __call__, otherwise use instance default
+        tokens_needed = (
+            self._temp_tokens_to_consume if self._temp_tokens_to_consume is not None else self.tokens_to_consume
+        )
+        # Clear temporary value
+        self._temp_tokens_to_consume = None
+
         # Execute token bucket logic
         # No lock needed: asyncio is single-threaded and execute_local_token_bucket_logic
         # has no await points, making it atomic from asyncio's perspective
-        timestamp = self.execute_local_token_bucket_logic(self._buckets)
+        timestamp = self.execute_local_token_bucket_logic(self._buckets, tokens_needed)
 
         # Parse timestamp and sleep
         sleep_time = self.parse_timestamp(timestamp)
