@@ -239,3 +239,45 @@ def test_initial_tokens(
     elapsed = time.perf_counter() - start
 
     assert 0.9 <= elapsed <= 1.1
+
+
+@pytest.mark.parametrize("connection_factory", SYNC_CONNECTIONS)
+def test_dynamic_tokens_to_consume(connection_factory: ConnectionFactory) -> None:
+    """Test that tokens_to_consume can be passed dynamically when using the context manager."""
+    config = MockTokenBucketConfig(capacity=10.0, refill_frequency=1.0, refill_amount=2.0, tokens_to_consume=1.0)
+    bucket = sync_tokenbucket_factory(connection=connection_factory(), config=config)
+
+    start = time.perf_counter()
+
+    # Use default (1 token)
+    with bucket:
+        pass
+
+    # Consume 3 tokens dynamically
+    with bucket(3):
+        pass
+
+    with bucket(5):
+        pass
+
+    with bucket:
+        pass
+
+    elapsed = time.perf_counter() - start
+
+    # Total: 1 + 3 + 5 + 1 = 10 tokens consumed
+    # Capacity is 10, so all tokens are available immediately
+    assert elapsed < 0.1
+
+    start = time.perf_counter()
+
+    # This should require waiting for refills since we just used all 10 tokens
+    # We need 5 more tokens, and refill is 2 tokens/second
+    # So we need to wait ~2 seconds (2 tokens at 1s, 2 more at 2s)
+    with bucket(3):
+        pass
+
+    elapsed = time.perf_counter() - start
+
+    # Should be around 2 seconds (need 3 tokens, have 0, refill 2/sec: 0->2->4 tokens)
+    assert 1.9 <= elapsed <= 2.1
