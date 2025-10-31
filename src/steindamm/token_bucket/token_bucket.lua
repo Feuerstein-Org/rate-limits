@@ -23,9 +23,8 @@ local capacity = tonumber(ARGV[1])
 local refill_amount = tonumber(ARGV[2])
 local initial_tokens = tonumber(ARGV[3])
 local time_between_slots = tonumber(ARGV[4]) * 1000 -- Convert to milliseconds
-local milliseconds = tonumber(ARGV[5])
-local expiry = tonumber(ARGV[6])
-local tokens_to_consume = tonumber(ARGV[7]) -- Number of tokens to consume
+local expiry = tonumber(ARGV[5])
+local tokens_to_consume = tonumber(ARGV[6]) -- Number of tokens to consume
 
 -- Validate that tokens_to_consume doesn't exceed capacity
 if tokens_to_consume > capacity then
@@ -40,8 +39,9 @@ end
 -- Keys
 local data_key = KEYS[1]
 
--- Get current time in milliseconds
-local now = milliseconds
+-- Get current time in milliseconds from Redis
+local time_parts = redis.call('TIME')
+local now = tonumber(time_parts[1]) * 1000 + math.floor(tonumber(time_parts[2]) / 1000)
 
 -- Default bucket values (used if no bucket exists yet)
 local tokens = math.min(initial_tokens, capacity)

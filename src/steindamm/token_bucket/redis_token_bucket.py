@@ -6,7 +6,7 @@ from types import TracebackType
 from typing import ClassVar, cast
 
 from steindamm.base import AsyncLuaScriptBase, SyncLuaScriptBase
-from steindamm.token_bucket.token_bucket_base import TokenBucketBase, get_current_time_ms
+from steindamm.token_bucket.token_bucket_base import TokenBucketBase
 
 
 class SyncRedisTokenBucket(TokenBucketBase, SyncLuaScriptBase):
@@ -39,8 +39,6 @@ class SyncRedisTokenBucket(TokenBucketBase, SyncLuaScriptBase):
 
     def __enter__(self) -> float:
         """Acquire token(s) from the token bucket and sleep until they are available."""
-        # Retrieve timestamp for when to wake up from Redis Lua script
-        milliseconds = get_current_time_ms()
         timestamp: int = cast(
             int,
             self.script(
@@ -50,7 +48,6 @@ class SyncRedisTokenBucket(TokenBucketBase, SyncLuaScriptBase):
                     self.refill_amount,
                     self.initial_tokens or self.capacity,
                     self.refill_frequency,
-                    milliseconds,
                     self.expiry,
                     self.tokens_to_consume,
                 ],
@@ -104,8 +101,6 @@ class AsyncRedisTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
 
     async def __aenter__(self) -> None:
         """Acquire token(s) from the token bucket and sleep until they are available."""
-        # Retrieve timestamp for when to wake up from Redis Lua script
-        milliseconds = get_current_time_ms()
         timestamp: int = cast(
             int,
             await self.script(
@@ -115,7 +110,6 @@ class AsyncRedisTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
                     self.refill_amount,
                     self.initial_tokens or self.capacity,
                     self.refill_frequency,
-                    milliseconds,
                     self.expiry,
                     self.tokens_to_consume,
                 ],
