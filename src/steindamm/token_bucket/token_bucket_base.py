@@ -63,23 +63,17 @@ class TokenBucketBase(BaseModel):
             )
         return self
 
-    def parse_timestamp(self, input_data: int | str) -> float | MaxSleepExceededError:
-        """Parse timestamp OR construct exception from Redis error."""
-        # Case 1: Redis error message
-        if isinstance(input_data, str) and "Time till next token exceeds max_sleep time:" in input_data:
-            sleep_time_str = input_data.split(":")[-1].strip()
-            sleep_time = float(sleep_time_str)
+    def raise_max_sleep_exception(self, sleep_time: float) -> None:
+        """Construct and raise MaxSleepExceededError with detailed message."""
+        detailed_msg = (
+            f"Rate limit exceeded for '{self.name}': would sleep {sleep_time:.2f}s "
+            f"but max_sleep is {self.max_sleep}s. Consider increasing capacity "
+            f"({self.capacity}) or refill_rate ({self.refill_amount}/{self.refill_frequency}s)."
+        )
+        raise MaxSleepExceededError(detailed_msg)
 
-            detailed_msg = (
-                f"Rate limit exceeded for '{self.name}': would sleep {sleep_time:.2f}s "
-                f"but max_sleep is {self.max_sleep}s. Consider increasing capacity "
-                f"({self.capacity}) or refill_rate ({self.refill_amount}/{self.refill_frequency}s)."
-            )
-
-            return MaxSleepExceededError(detailed_msg)
-
-        # Case 2: Normal timestamp
-        timestamp = int(input_data)
+    def parse_timestamp_local(self, timestamp: int) -> float:
+        """Parse timestamp for local buckets with max_sleep validation."""
         wake_up_time = datetime.fromtimestamp(timestamp / 1000)
         now = datetime.now()
 
@@ -88,17 +82,21 @@ class TokenBucketBase(BaseModel):
 
         sleep_time = (wake_up_time - now).total_seconds()
 
-        # For LOCAL buckets, validate max_sleep (Redis already validated)
+        # Validate max_sleep for local buckets
         if self.max_sleep != 0.0 and sleep_time > self.max_sleep:
-            detailed_msg = (
-                f"Rate limit exceeded for '{self.name}': would sleep {sleep_time:.2f}s "
-                f"but max_sleep is {self.max_sleep}s. Consider increasing capacity "
-                f"({self.capacity}) or refill_rate ({self.refill_amount}/{self.refill_frequency}s)."
-            )
-            raise MaxSleepExceededError(detailed_msg)  # RAISE for local buckets
+            self.raise_max_sleep_exception(sleep_time)
 
-        logger.info("Sleeping %s seconds (%s)", sleep_time, self.name)
         return sleep_time
+
+    def parse_timestamp_redis(self, timestamp: int) -> float:
+        """Parse timestamp for Redis buckets (no max_sleep validation - Redis handles it)."""
+        wake_up_time = datetime.fromtimestamp(timestamp / 1000)
+        now = datetime.now()
+
+        if wake_up_time < now:
+            return 0.0
+
+        return (wake_up_time - now).total_seconds()
 
     # TODO: Add whitebox tests for this method
     def execute_local_token_bucket_logic(self, buckets: dict[str, dict]) -> int:

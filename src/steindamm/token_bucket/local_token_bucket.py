@@ -6,7 +6,6 @@ from threading import Lock
 from types import TracebackType
 from typing import ClassVar
 
-from steindamm import MaxSleepExceededError
 from steindamm.token_bucket.token_bucket_base import TokenBucketBase
 
 
@@ -55,11 +54,8 @@ class SyncLocalTokenBucket(TokenBucketBase):
         with self._get_lock():
             timestamp = self.execute_local_token_bucket_logic(self._buckets)
 
-        # Parse timestamp and sleep
-        result = self.parse_timestamp(timestamp)
-        if isinstance(result, MaxSleepExceededError):
-            raise result
-        sleep_time = result
+        sleep_time = self.parse_timestamp_local(timestamp)
+
         time.sleep(sleep_time)
 
     def __exit__(
@@ -109,11 +105,7 @@ class AsyncLocalTokenBucket(TokenBucketBase):
         # has no await points, making it atomic from asyncio's perspective
         timestamp = self.execute_local_token_bucket_logic(self._buckets)
 
-        # Parse timestamp and sleep
-        result = self.parse_timestamp(timestamp)
-        if isinstance(result, MaxSleepExceededError):
-            raise result
-        sleep_time = result
+        sleep_time = self.parse_timestamp_local(timestamp)
         await asyncio.sleep(sleep_time)
 
     async def __aexit__(

@@ -5,7 +5,6 @@ import time
 from types import TracebackType
 from typing import ClassVar, cast
 
-from steindamm import MaxSleepExceededError
 from steindamm.base import AsyncLuaScriptBase, SyncLuaScriptBase
 from steindamm.token_bucket.token_bucket_base import TokenBucketBase, get_current_time_ms
 
@@ -60,20 +59,15 @@ class SyncRedisTokenBucket(TokenBucketBase, SyncLuaScriptBase):
                 ),
             )
 
-            result = self.parse_timestamp(timestamp)
-
-            if isinstance(result, MaxSleepExceededError):
-                raise result
-
-            sleep_time = result
+            # Parse timestamp
+            sleep_time = self.parse_timestamp_redis(timestamp)
 
         except Exception as e:
             # Handle Redis error replies from Lua script
             if "Time till next token exceeds max_sleep time:" in str(e):
-                result = self.parse_timestamp(str(e))
-                # Assert that parsing Redis error always returns MaxSleepExceededError
-                assert isinstance(result, MaxSleepExceededError)
-                raise result from e
+                sleep_time_str = str(e).split(":")[-1].strip()
+                sleep_time = float(sleep_time_str)
+                self.raise_max_sleep_exception(sleep_time)  # Will raise MaxSleepExceededError
             raise
 
         # Sleep before returning
@@ -140,17 +134,13 @@ class AsyncRedisTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
             )
 
             # Parse timestamp
-            result = self.parse_timestamp(timestamp)
-            if isinstance(result, MaxSleepExceededError):
-                raise result
-            sleep_time = result
+            sleep_time = self.parse_timestamp_redis(timestamp)
 
         except Exception as e:
             if "Time till next token exceeds max_sleep time:" in str(e):
-                result = self.parse_timestamp(str(e))
-                # Assert that parsing Redis error always returns MaxSleepExceededError
-                assert isinstance(result, MaxSleepExceededError)
-                raise result from e
+                sleep_time_str = str(e).split(":")[-1].strip()
+                sleep_time = float(sleep_time_str)
+                self.raise_max_sleep_exception(sleep_time)  # Will raise MaxSleepExceededError
             raise
 
         # Sleep before returning
