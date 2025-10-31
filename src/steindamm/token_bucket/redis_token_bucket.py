@@ -5,6 +5,7 @@ import time
 from types import TracebackType
 from typing import ClassVar, cast
 
+from steindamm import MaxSleepExceededError
 from steindamm.base import AsyncLuaScriptBase, SyncLuaScriptBase
 from steindamm.token_bucket.token_bucket_base import TokenBucketBase, get_current_time_ms
 
@@ -54,21 +55,26 @@ class SyncRedisTokenBucket(TokenBucketBase, SyncLuaScriptBase):
                         milliseconds,
                         self.expiry,
                         self.tokens_to_consume,
-                        self.max_sleep,  # ADDED: Pass max_sleep to Lua script
-                        self.name,
+                        self.max_sleep,
                     ],
                 ),
             )
+
+            result = self.parse_timestamp(timestamp)
+
+            if isinstance(result, MaxSleepExceededError):
+                raise result
+
+            sleep_time = result
+
         except Exception as e:
             # Handle Redis error replies from Lua script
-            if "Rate limit exceeded" in str(e):
-                from steindamm import MaxSleepExceededError
-
-                raise MaxSleepExceededError(str(e)) from e
+            if "Time till next token exceeds max_sleep time:" in str(e):
+                result = self.parse_timestamp(str(e))
+                # Assert that parsing Redis error always returns MaxSleepExceededError
+                assert isinstance(result, MaxSleepExceededError)
+                raise result from e
             raise
-
-        # Estimate sleep time
-        sleep_time = self.parse_timestamp(timestamp)
 
         # Sleep before returning
         time.sleep(sleep_time)
@@ -114,7 +120,6 @@ class AsyncRedisTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
 
     async def __aenter__(self) -> None:
         """Acquire token(s) from the token bucket and sleep until they are available."""
-        # Retrieve timestamp for when to wake up from Redis Lua script
         milliseconds = get_current_time_ms()
         try:
             timestamp: int = cast(
@@ -129,21 +134,24 @@ class AsyncRedisTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
                         milliseconds,
                         self.expiry,
                         self.tokens_to_consume,
-                        self.max_sleep,  # ADDED: Pass max_sleep to Lua script
-                        self.name,
+                        self.max_sleep,
                     ],
                 ),
             )
+
+            # Parse timestamp
+            result = self.parse_timestamp(timestamp)
+            if isinstance(result, MaxSleepExceededError):
+                raise result
+            sleep_time = result
+
         except Exception as e:
-            # Handle Redis error replies from Lua script
-            if "Rate limit exceeded" in str(e):
-                from steindamm import MaxSleepExceededError
-
-                raise MaxSleepExceededError(str(e)) from e
+            if "Time till next token exceeds max_sleep time:" in str(e):
+                result = self.parse_timestamp(str(e))
+                # Assert that parsing Redis error always returns MaxSleepExceededError
+                assert isinstance(result, MaxSleepExceededError)
+                raise result from e
             raise
-
-        # Estimate sleep time
-        sleep_time = self.parse_timestamp(timestamp)
 
         # Sleep before returning
         await asyncio.sleep(sleep_time)

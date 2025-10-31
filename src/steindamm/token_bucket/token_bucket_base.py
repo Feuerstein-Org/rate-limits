@@ -63,28 +63,40 @@ class TokenBucketBase(BaseModel):
             )
         return self
 
-    def parse_timestamp(self, timestamp: int) -> float:
-        """Parse a timestamp in milliseconds and determine how long to sleep."""
-        # Parse to datetime
+    def parse_timestamp(self, input_data: int | str) -> float | MaxSleepExceededError:
+        """Parse timestamp OR construct exception from Redis error."""
+        # Case 1: Redis error message
+        if isinstance(input_data, str) and "Time till next token exceeds max_sleep time:" in input_data:
+            sleep_time_str = input_data.split(":")[-1].strip()
+            sleep_time = float(sleep_time_str)
+
+            detailed_msg = (
+                f"Rate limit exceeded for '{self.name}': would sleep {sleep_time:.2f}s "
+                f"but max_sleep is {self.max_sleep}s. Consider increasing capacity "
+                f"({self.capacity}) or refill_rate ({self.refill_amount}/{self.refill_frequency}s)."
+            )
+
+            return MaxSleepExceededError(detailed_msg)
+
+        # Case 2: Normal timestamp
+        timestamp = int(input_data)
         wake_up_time = datetime.fromtimestamp(timestamp / 1000)
         now = datetime.now()
 
-        # Return if we don't need to sleep
         if wake_up_time < now:
-            return 0
+            return 0.0
 
-        # Establish how long we should sleep
         sleep_time = (wake_up_time - now).total_seconds()
 
-        # Raise an error if we exceed the maximum sleep setting
+        # For LOCAL buckets, validate max_sleep (Redis already validated)
         if self.max_sleep != 0.0 and sleep_time > self.max_sleep:
-            raise MaxSleepExceededError(
-                f"Rate limit exceeded for '{self.name}': "
-                f"would sleep {sleep_time:.2f}s but max_sleep is {self.max_sleep}s. "
-                f"Consider increasing capacity ({self.capacity}) or refill_rate ({self.refill_amount}/{self.refill_frequency}s)."
+            detailed_msg = (
+                f"Rate limit exceeded for '{self.name}': would sleep {sleep_time:.2f}s "
+                f"but max_sleep is {self.max_sleep}s. Consider increasing capacity "
+                f"({self.capacity}) or refill_rate ({self.refill_amount}/{self.refill_frequency}s)."
             )
+            raise MaxSleepExceededError(detailed_msg)  # RAISE for local buckets
 
-        # TODO make this debug and add more logs
         logger.info("Sleeping %s seconds (%s)", sleep_time, self.name)
         return sleep_time
 
