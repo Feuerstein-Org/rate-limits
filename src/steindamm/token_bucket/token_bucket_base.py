@@ -22,11 +22,6 @@ PositiveFloat = Annotated[float, Field(gt=0)]
 NonNegativeFloat = Annotated[float, Field(ge=0)]
 
 
-def get_current_time_ms() -> int:
-    """Get the current time in milliseconds."""
-    return int(time.time() * 1000)
-
-
 # Defaults are defined here and in Async/SyncTokenBucket to help with typehints - keep them in sync
 class TokenBucketBase(BaseModel):
     """Base class for Token Bucket rate limiters."""
@@ -112,7 +107,7 @@ class TokenBucketBase(BaseModel):
         if self.tokens_to_consume <= 0:
             raise ValueError("Must consume at least 1 token")
 
-        now = get_current_time_ms()
+        now = int(time.time() * 1000)
         time_between_slots = self.refill_frequency * 1000
 
         # Initialize bucket state (None for new buckets)
