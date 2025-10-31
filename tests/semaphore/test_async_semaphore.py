@@ -19,6 +19,7 @@ from tests.conftest import (
     SemaphoreConfig,
     async_run,
     async_semaphore_factory,
+    initialize_async_connection,
 )
 
 logger = logging.getLogger(__name__)
@@ -49,9 +50,10 @@ async def test_semaphore_runtimes(
     a Semaphore with a capacity of 5, where each instance sleeps 1 second, then it should
     always take 1 >= seconds to run those.
     """
-    connection = connection_factory()
+    connection = await initialize_async_connection(connection_factory())
     if connection is None:  # TODO: Add support for in-memory semaphore
         pytest.skip("In-memory connection does not support semaphore")
+
     config = SemaphoreConfig(capacity=capacity)
     tasks = [
         asyncio.create_task(
