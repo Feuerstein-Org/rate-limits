@@ -41,24 +41,34 @@ class SyncRedisTokenBucket(TokenBucketBase, SyncLuaScriptBase):
         """Acquire token(s) from the token bucket and sleep until they are available."""
         # Retrieve timestamp for when to wake up from Redis Lua script
         milliseconds = get_current_time_ms()
-        timestamp: int = cast(
-            int,
-            self.script(
-                keys=[self.key],
-                args=[
-                    self.capacity,
-                    self.refill_amount,
-                    self.initial_tokens or self.capacity,
-                    self.refill_frequency,
-                    milliseconds,
-                    self.expiry,
-                    self.tokens_to_consume,
-                ],
-            ),
-        )
+        try:
+            timestamp: int = cast(
+                int,
+                self.script(
+                    keys=[self.key],
+                    args=[
+                        self.capacity,
+                        self.refill_amount,
+                        self.initial_tokens or self.capacity,
+                        self.refill_frequency,
+                        milliseconds,
+                        self.expiry,
+                        self.tokens_to_consume,
+                        self.max_sleep,
+                    ],
+                ),
+            )
 
-        # Estimate sleep time
-        sleep_time = self.parse_timestamp(timestamp)
+            # Parse timestamp
+            sleep_time = self.parse_timestamp_redis(timestamp)
+
+        except Exception as e:
+            # Handle Redis error replies from Lua script
+            if "Time till next token exceeds max_sleep time:" in str(e):
+                sleep_time_str = str(e).split(":")[-1].strip()
+                sleep_time = float(sleep_time_str)
+                self.raise_max_sleep_exception(sleep_time)  # Will raise MaxSleepExceededError
+            raise
 
         # Sleep before returning
         time.sleep(sleep_time)
@@ -104,26 +114,34 @@ class AsyncRedisTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
 
     async def __aenter__(self) -> None:
         """Acquire token(s) from the token bucket and sleep until they are available."""
-        # Retrieve timestamp for when to wake up from Redis Lua script
         milliseconds = get_current_time_ms()
-        timestamp: int = cast(
-            int,
-            await self.script(
-                keys=[self.key],
-                args=[
-                    self.capacity,
-                    self.refill_amount,
-                    self.initial_tokens or self.capacity,
-                    self.refill_frequency,
-                    milliseconds,
-                    self.expiry,
-                    self.tokens_to_consume,
-                ],
-            ),
-        )
+        try:
+            timestamp: int = cast(
+                int,
+                await self.script(
+                    keys=[self.key],
+                    args=[
+                        self.capacity,
+                        self.refill_amount,
+                        self.initial_tokens or self.capacity,
+                        self.refill_frequency,
+                        milliseconds,
+                        self.expiry,
+                        self.tokens_to_consume,
+                        self.max_sleep,
+                    ],
+                ),
+            )
 
-        # Estimate sleep time
-        sleep_time = self.parse_timestamp(timestamp)
+            # Parse timestamp
+            sleep_time = self.parse_timestamp_redis(timestamp)
+
+        except Exception as e:
+            if "Time till next token exceeds max_sleep time:" in str(e):
+                sleep_time_str = str(e).split(":")[-1].strip()
+                sleep_time = float(sleep_time_str)
+                self.raise_max_sleep_exception(sleep_time)  # Will raise MaxSleepExceededError
+            raise
 
         # Sleep before returning
         await asyncio.sleep(sleep_time)
