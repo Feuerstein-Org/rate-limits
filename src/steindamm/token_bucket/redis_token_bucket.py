@@ -62,6 +62,13 @@ class SyncRedisTokenBucket(TokenBucketBase, SyncLuaScriptBase):
 
     def __enter__(self) -> float:
         """Acquire token(s) from the token bucket and sleep until they are available."""
+        # Use temporary value if set by __call__, otherwise use instance default
+        tokens_needed = (
+            self._temp_tokens_to_consume if self._temp_tokens_to_consume is not None else self.tokens_to_consume
+        )
+        # Clear temporary value
+        self._temp_tokens_to_consume = None
+
         timestamp: int = cast(
             int,
             self.script(
@@ -147,6 +154,13 @@ class AsyncRedisTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
 
     async def __aenter__(self) -> None:
         """Acquire token(s) from the token bucket and sleep until they are available."""
+        # Use temporary value if set by __call__, otherwise use instance default
+        tokens_needed = (
+            self._temp_tokens_to_consume if self._temp_tokens_to_consume is not None else self.tokens_to_consume
+        )
+        # Clear temporary value
+        self._temp_tokens_to_consume = None
+
         timestamp: int = cast(
             int,
             await self.script(
