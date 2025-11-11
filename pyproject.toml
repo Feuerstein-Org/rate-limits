@@ -43,8 +43,8 @@ redis = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Feuerstein-Org/steindamm"
-Repository = "https://github.com/Feuerstein-Org/steindamm"
+Homepage = "https://github.com/feuerstein-org/steindamm"
+Repository = "https://github.com/feuerstein-org/steindamm"
 
 [dependency-groups]
 dev = [

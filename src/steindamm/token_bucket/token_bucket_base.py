@@ -22,11 +22,6 @@ PositiveFloat = Annotated[float, Field(gt=0)]
 NonNegativeFloat = Annotated[float, Field(ge=0)]
 
 
-def get_current_time_ms() -> int:
-    """Get the current time in milliseconds."""
-    return int(time.time() * 1000)
-
-
 # Defaults are defined here and in Async/SyncTokenBucket to help with typehints - keep them in sync
 class TokenBucketBase(BaseModel):
     """Base class for Token Bucket rate limiters."""
@@ -39,6 +34,7 @@ class TokenBucketBase(BaseModel):
     max_sleep: NonNegativeFloat = 30.0
     expiry: PositiveInt = 60  # TODO Add tests for this
     tokens_to_consume: PositiveFloat = 1.0
+    _temp_tokens_to_consume: float | None = None  # Used internally by __call__ for context manager
 
     @model_validator(mode="after")
     def validate_token_bucket_config(self) -> Self:
@@ -99,7 +95,7 @@ class TokenBucketBase(BaseModel):
         return (wake_up_time - now).total_seconds()
 
     # TODO: Add whitebox tests for this method
-    def execute_local_token_bucket_logic(self, buckets: dict[str, dict]) -> int:
+    def execute_local_token_bucket_logic(self, buckets: dict[str, dict], tokens_to_consume: float | None = None) -> int:
         """
         Execute the token bucket algorithm logic locally.
 
@@ -109,20 +105,27 @@ class TokenBucketBase(BaseModel):
         The local subclasses are expected to implement storage and locking around this method.
         Specifically the buckets storage is required.
 
+        Args:
+            buckets: Storage dictionary for bucket states.
+            tokens_to_consume: Number of tokens to consume. If None, uses self.tokens_to_consume.
+
         Returns:
             int: The slot timestamp in milliseconds when tokens are available.
 
         """
         # This method should mirror the lua script logic as closely as possible
 
+        # Use provided tokens_to_consume or fall back to instance variable
+        tokens_needed = tokens_to_consume if tokens_to_consume is not None else self.tokens_to_consume
+
         # Validate tokens_to_consume doesn't exceed capacity
-        if self.tokens_to_consume > self.capacity:
+        if tokens_needed > self.capacity:
             raise ValueError("Requested tokens exceed bucket capacity")
 
-        if self.tokens_to_consume <= 0:
+        if tokens_needed <= 0:
             raise ValueError("Must consume at least 1 token")
 
-        now = get_current_time_ms()
+        now = int(time.time() * 1000)
         time_between_slots = self.refill_frequency * 1000
 
         # Initialize bucket state (None for new buckets)
@@ -145,9 +148,9 @@ class TokenBucketBase(BaseModel):
                 slot = now
 
         # If not enough tokens are available, move to the next slot(s) and refill accordingly
-        if tokens < self.tokens_to_consume:
+        if tokens < tokens_needed:
             # Calculate how many additional tokens we need
-            needed_tokens = self.tokens_to_consume - tokens
+            needed_tokens = tokens_needed - tokens
             # Calculate how many slots we need to move forward to get enough tokens
             needed_slots = math.ceil(needed_tokens / self.refill_amount)
             slot += needed_slots * time_between_slots
@@ -155,7 +158,7 @@ class TokenBucketBase(BaseModel):
             tokens = min(tokens + needed_slots * self.refill_amount, self.capacity)
 
         # Consume the requested tokens
-        tokens -= self.tokens_to_consume
+        tokens -= tokens_needed
 
         # Persist updated state
         buckets[self.key] = {"slot": slot, "tokens": tokens, "last_update": time.time()}

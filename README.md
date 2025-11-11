@@ -31,6 +31,7 @@ We currently support Python 3.11, 3.12, and 3.13.
 - **Factory Classes**: `SyncTokenBucket` and `AsyncTokenBucket` automatically choose implementation based on connection
 - **Explicit Classes**: Direct access to `SyncRedisTokenBucket`, `AsyncRedisTokenBucket`, `SyncLocalTokenBucket`, `AsyncLocalTokenBucket`
 - **Configurable Token Consumption**: `tokens_to_consume` parameter for variable-cost operations
+  - Set at initialization or override dynamically per request: `with bucket(5):`
 - **Customizable Behavior**: Control capacity, refill rates, expiry, max sleep time, and initial state
 
 ## Installation
@@ -260,8 +261,9 @@ redis_limiter = SyncRedisTokenBucket(connection=redis_conn, name="api", capacity
 
 #### Consuming Multiple Tokens Per Request
 
-You can control how many tokens are consumed per operation using the `tokens_to_consume` parameter.
-This is useful when different operations _on the same api_ have different "costs". Note, how the "name" aka is the same between the limiters which will cause the tokens to be shared.
+You can control how many tokens are consumed per operation using the `tokens_to_consume` parameter. There are two ways to do this:
+
+**1. Set at initialization time:**
 
 ```python
 from steindamm import SyncTokenBucket
@@ -278,6 +280,44 @@ with small_limiter:
 with large_limiter:
     make_large_request()  # Consumes 5 tokens
 ```
+Note: When different operations _on the same resource_ have different "costs", using the same "name" (aka the bucket key) will cause the tokens to be shared across all limiters using that name.
+
+
+**2. Pass dynamically when using the context manager:**
+
+You can override the `tokens_to_consume` value on a per-request basis by calling the bucket instance:
+
+```python
+from steindamm import SyncTokenBucket
+
+# Create a single bucket with default tokens_to_consume=1
+limiter = SyncTokenBucket(name="api", capacity=100, tokens_to_consume=1)
+
+with limiter:
+    make_small_request()  # Uses default: consumes 1 token
+
+with limiter(5):
+    make_large_request()  # Dynamically consumes 5 tokens
+
+with limiter(10):
+    make_extra_large_request()  # Dynamically consumes 10 tokens
+```
+
+This works for all token bucket implementations (sync/async, Redis/local):
+
+```python
+from steindamm import AsyncTokenBucket
+
+async_limiter = AsyncTokenBucket(name="api", capacity=100)
+
+async with async_limiter:
+    await make_small_request()  # Default: 1 token
+
+async with async_limiter(5):
+    await make_large_request()  # Dynamically: 5 tokens
+```
+
+
 
 ### Using them as a decorator
 
@@ -340,14 +380,14 @@ Contributions are very welcome. Here's how to get started:
 To publish a new version:
 
 - Update the package version in the `pyproject.toml`
-- Open [Github releases](https://github.com/Feuerstein-Org/steindamm/releases)
+- Open [Github releases](https://github.com/feuerstein-org/steindamm/releases)
 - Press "Draft a new release"
 - Set a tag matching the new version (for example, `v0.8.0`)
 - Set the title matching the tag
 - Add some release notes, explaining what has changed
 - Publish
 
-Once the release is published, our [publish workflow](https://github.com/Feuerstein-Org/steindamm/blob/main/.github/workflows/publish.yaml) should be triggered
+Once the release is published, our [publish workflow](https://github.com/feuerstein-org/steindamm/blob/main/.github/workflows/publish.yaml) should be triggered
 to push the new version to PyPI.
 
 ## Acknowledgment:
