@@ -340,14 +340,14 @@ Contributions are very welcome. Here's how to get started:
 To publish a new version:
 
 - Update the package version in the `pyproject.toml`
-- Open [Github releases](https://github.com/Feuerstein-Org/steindamm/releases)
+- Open [Github releases](https://github.com/feuerstein-org/steindamm/releases)
 - Press "Draft a new release"
 - Set a tag matching the new version (for example, `v0.8.0`)
 - Set the title matching the tag
 - Add some release notes, explaining what has changed
 - Publish
 
-Once the release is published, our [publish workflow](https://github.com/Feuerstein-Org/steindamm/blob/main/.github/workflows/publish.yaml) should be triggered
+Once the release is published, our [publish workflow](https://github.com/feuerstein-org/steindamm/blob/main/.github/workflows/publish.yaml) should be triggered
 to push the new version to PyPI.
 
 ## Acknowledgment:
