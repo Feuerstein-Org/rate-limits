@@ -18,6 +18,7 @@ from tests.conftest import (
     MockTokenBucketConfig,
     async_run,
     async_tokenbucket_factory,
+    initialize_async_connection,
 )
 
 logger = logging.getLogger(__name__)
@@ -37,8 +38,9 @@ async def test_token_bucket_runtimes(
     connection_factory: ConnectionFactory, n: int, frequency: float, timeout: int
 ) -> None:
     """Test that n requests complete in expected time based on refill frequency."""
+    connection = await initialize_async_connection(connection_factory())
     config = MockTokenBucketConfig(refill_frequency=frequency)
-    bucket = async_tokenbucket_factory(connection=connection_factory(), config=config)
+    bucket = async_tokenbucket_factory(connection=connection, config=config)
     # Ensure n tasks never complete in less than n/(refill_frequency * refill_amount)
     tasks = [
         asyncio.create_task(
@@ -100,8 +102,10 @@ async def test_high_concurrency_token_acquisition(
     connection_factory: ConnectionFactory,
 ) -> None:
     """Test many concurrent tasks accessing the same bucket."""
+    connection = await initialize_async_connection(connection_factory())
+
     bucket = async_tokenbucket_factory(
-        connection=connection_factory(),
+        connection=connection,
         config=MockTokenBucketConfig(capacity=5, refill_frequency=0.1, refill_amount=5),
     )
 
@@ -146,7 +150,8 @@ async def test_token_bucket_tokens_to_consume(  # noqa: PLR0913
     timeout: float,
 ) -> None:
     """Test that tokens_to_consume parameter correctly controls token consumption per request."""
-    connection = connection_factory()
+    connection = await initialize_async_connection(connection_factory())
+
     config = MockTokenBucketConfig(
         capacity=5.0,
         refill_frequency=refill_frequency,
@@ -208,8 +213,10 @@ async def test_initial_tokens(
     connection_factory: ConnectionFactory, initial_tokens: float | None, expected_value: float, expected_requests: int
 ) -> None:
     """Test that initial_tokens defaults to capacity or uses explicit value and affects behavior."""
+    connection = await initialize_async_connection(connection_factory())
+
     config = MockTokenBucketConfig(capacity=5, initial_tokens=initial_tokens)
-    bucket = async_tokenbucket_factory(connection=connection_factory(), config=config)
+    bucket = async_tokenbucket_factory(connection=connection, config=config)
 
     # Test the value is set correctly
     assert bucket.initial_tokens == expected_value

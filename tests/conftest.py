@@ -30,6 +30,23 @@ logger: Logger = logging.getLogger(__name__)
 STANDALONE_URL = "redis://127.0.0.1:6378"
 CLUSTER_URL = "redis://127.0.0.1:6380"
 
+
+async def initialize_async_connection(
+    connection: AsyncRedis | AsyncRedisCluster | None,
+) -> AsyncRedis | AsyncRedisCluster | None:
+    """
+    Pre-initialize async Redis connections to avoid lazy initialization overhead.
+
+    AsyncRedisCluster has a ~26-29ms lazy initialization penalty on first use.
+    This helper ensures connections are initialized before timing-sensitive operations.
+
+    This doesn't seem to be a problem with SyncRedis or SyncRedisCluster.
+    """
+    if connection is not None and hasattr(connection, "initialize"):
+        await connection.initialize()
+    return connection
+
+
 STANDALONE_SYNC_CONNECTION = partial(SyncRedis.from_url, STANDALONE_URL)
 CLUSTER_SYNC_CONNECTION = partial(SyncRedisCluster.from_url, CLUSTER_URL)
 STANDALONE_ASYNC_CONNECTION = partial(AsyncRedis.from_url, STANDALONE_URL)
@@ -85,7 +102,7 @@ def sync_tokenbucket_factory(
 
 def async_tokenbucket_factory(
     *,
-    connection: AsyncRedis | AsyncRedisCluster,
+    connection: AsyncRedis | AsyncRedisCluster | None,
     config: MockTokenBucketConfig,
 ) -> AsyncRedisTokenBucket | AsyncLocalTokenBucket:
     """Create a AsyncTokenBucket or AsyncRedisTokenBucket if connection was provided."""
