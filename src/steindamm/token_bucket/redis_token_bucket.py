@@ -69,23 +69,33 @@ class SyncRedisTokenBucket(TokenBucketBase, SyncLuaScriptBase):
         # Clear temporary value
         self._temp_tokens_to_consume = None
 
-        timestamp: int = cast(
-            int,
-            self.script(
-                keys=[self.key],
-                args=[
-                    self.capacity,
-                    self.refill_amount,
-                    self.initial_tokens or self.capacity,
-                    self.refill_frequency,
-                    self.expiry,
-                    tokens_needed,
-                ],
-            ),
-        )
+        try:
+            timestamp: int = cast(
+                int,
+                self.script(
+                    keys=[self.key],
+                    args=[
+                        self.capacity,
+                        self.refill_amount,
+                        self.initial_tokens or self.capacity,
+                        self.refill_frequency,
+                        self.expiry,
+                        tokens_needed,
+                        self.max_sleep,
+                    ],
+                ),
+            )
 
-        # Estimate sleep time
-        sleep_time = self.parse_timestamp(timestamp)
+            # Parse timestamp
+            sleep_time = self.parse_timestamp(timestamp)
+
+        except Exception as e:
+            # Lua script will return exception if max_sleep is exceeded
+            if "Time till next token exceeds max_sleep time:" in str(e):
+                sleep_time_str = str(e).split(":")[-1].strip()
+                sleep_time = float(sleep_time_str)
+                self.raise_max_sleep_exception(sleep_time)  # Will raise MaxSleepExceededError
+            raise
 
         # Sleep before returning
         time.sleep(sleep_time)
@@ -161,23 +171,33 @@ class AsyncRedisTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
         # Clear temporary value
         self._temp_tokens_to_consume = None
 
-        timestamp: int = cast(
-            int,
-            await self.script(
-                keys=[self.key],
-                args=[
-                    self.capacity,
-                    self.refill_amount,
-                    self.initial_tokens or self.capacity,
-                    self.refill_frequency,
-                    self.expiry,
-                    tokens_needed,
-                ],
-            ),
-        )
+        try:
+            timestamp: int = cast(
+                int,
+                await self.script(
+                    keys=[self.key],
+                    args=[
+                        self.capacity,
+                        self.refill_amount,
+                        self.initial_tokens or self.capacity,
+                        self.refill_frequency,
+                        self.expiry,
+                        tokens_needed,
+                        self.max_sleep,
+                    ],
+                ),
+            )
 
-        # Estimate sleep time
-        sleep_time = self.parse_timestamp(timestamp)
+            # Parse timestamp
+            sleep_time = self.parse_timestamp(timestamp)
+
+        except Exception as e:
+            # Lua script will return exception if max_sleep is exceeded
+            if "Time till next token exceeds max_sleep time:" in str(e):
+                sleep_time_str = str(e).split(":")[-1].strip()
+                sleep_time = float(sleep_time_str)
+                self.raise_max_sleep_exception(sleep_time)  # Will raise MaxSleepExceededError
+            raise
 
         # Sleep before returning
         await asyncio.sleep(sleep_time)

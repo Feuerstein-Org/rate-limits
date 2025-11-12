@@ -59,26 +59,33 @@ class TokenBucketBase(BaseModel):
             )
         return self
 
+    def raise_max_sleep_exception(self, sleep_time: float) -> None:
+        """Construct and raise MaxSleepExceededError with detailed message."""
+        detailed_msg = (
+            f"Rate limit exceeded for '{self.name}': would sleep {sleep_time:.2f}s "
+            f"but max_sleep is {self.max_sleep}s. Consider increasing capacity "
+            f"({self.capacity}) or refill_rate ({self.refill_amount}/{self.refill_frequency}s)."
+        )
+        raise MaxSleepExceededError(detailed_msg)
+
     def parse_timestamp(self, timestamp: int) -> float:
-        """Parse a timestamp in milliseconds and determine how long to sleep."""
-        # Parse to datetime
+        """
+        Parse timestamp and calculate sleep time.
+
+        Used by both local and Redis token buckets however the sleep time validation is technically redundant
+        for Redis since it's done in the Lua script already
+        """
         wake_up_time = datetime.fromtimestamp(timestamp / 1000)
         now = datetime.now()
 
-        # Return if we don't need to sleep
         if wake_up_time < now:
-            return 0
+            return 0.0
 
-        # Establish how long we should sleep
         sleep_time = (wake_up_time - now).total_seconds()
 
-        # Raise an error if we exceed the maximum sleep setting
+        # Validate max_sleep for local buckets
         if self.max_sleep != 0.0 and sleep_time > self.max_sleep:
-            raise MaxSleepExceededError(
-                f"Rate limit exceeded for '{self.name}': "
-                f"would sleep {sleep_time:.2f}s but max_sleep is {self.max_sleep}s. "
-                f"Consider increasing capacity ({self.capacity}) or refill_rate ({self.refill_amount}/{self.refill_frequency}s)."
-            )
+            self.raise_max_sleep_exception(sleep_time)
 
         # TODO make this debug and add more logs
         logger.info("Sleeping %s seconds (%s)", sleep_time, self.name)
