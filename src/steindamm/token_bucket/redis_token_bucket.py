@@ -87,10 +87,10 @@ class SyncRedisTokenBucket(TokenBucketBase, SyncLuaScriptBase):
             )
 
             # Parse timestamp
-            sleep_time = self.parse_timestamp_redis(timestamp)
+            sleep_time = self.parse_timestamp(timestamp)
 
         except Exception as e:
-            # Handle Redis error replies from Lua script
+            # Lua script will return exception if max_sleep is exceeded
             if "Time till next token exceeds max_sleep time:" in str(e):
                 sleep_time_str = str(e).split(":")[-1].strip()
                 sleep_time = float(sleep_time_str)
@@ -170,7 +170,7 @@ class AsyncRedisTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
         )
         # Clear temporary value
         self._temp_tokens_to_consume = None
-        
+
         try:
             timestamp: int = cast(
                 int,
@@ -189,9 +189,10 @@ class AsyncRedisTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
             )
 
             # Parse timestamp
-            sleep_time = self.parse_timestamp_redis(timestamp)
+            sleep_time = self.parse_timestamp(timestamp)
 
         except Exception as e:
+            # Lua script will return exception if max_sleep is exceeded
             if "Time till next token exceeds max_sleep time:" in str(e):
                 sleep_time_str = str(e).split(":")[-1].strip()
                 sleep_time = float(sleep_time_str)

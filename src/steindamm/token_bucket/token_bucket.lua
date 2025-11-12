@@ -84,7 +84,7 @@ end
 local required_sleep = math.max(0, slot - now)
 -- Check if sleep would exceed max_sleep (if max_sleep > 0)
 if max_sleep_ms > 0 and required_sleep > max_sleep_ms then
-    return redis.error_reply("Time till next token exceeds max_sleep time:" .. string.format("%.2f", required_sleep/1000))
+    return redis.error_reply("Time till next token exceeds max_sleep time:" .. string.format("%.2f", required_sleep/1000)) -- Convert to seconds
 end
 
 -- Consume tokens

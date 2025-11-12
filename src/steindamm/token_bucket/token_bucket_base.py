@@ -68,8 +68,13 @@ class TokenBucketBase(BaseModel):
         )
         raise MaxSleepExceededError(detailed_msg)
 
-    def parse_timestamp_local(self, timestamp: int) -> float:
-        """Parse timestamp for local buckets with max_sleep validation."""
+    def parse_timestamp(self, timestamp: int) -> float:
+        """
+        Parse timestamp and calculate sleep time.
+
+        Used by both local and Redis token buckets however the sleep time validation is technically redundant
+        for Redis since it's done in the Lua script already
+        """
         wake_up_time = datetime.fromtimestamp(timestamp / 1000)
         now = datetime.now()
 
@@ -82,17 +87,9 @@ class TokenBucketBase(BaseModel):
         if self.max_sleep != 0.0 and sleep_time > self.max_sleep:
             self.raise_max_sleep_exception(sleep_time)
 
+        # TODO make this debug and add more logs
+        logger.info("Sleeping %s seconds (%s)", sleep_time, self.name)
         return sleep_time
-
-    def parse_timestamp_redis(self, timestamp: int) -> float:
-        """Parse timestamp for Redis buckets (no max_sleep validation - Redis handles it)."""
-        wake_up_time = datetime.fromtimestamp(timestamp / 1000)
-        now = datetime.now()
-
-        if wake_up_time < now:
-            return 0.0
-
-        return (wake_up_time - now).total_seconds()
 
     # TODO: Add whitebox tests for this method
     def execute_local_token_bucket_logic(self, buckets: dict[str, dict], tokens_to_consume: float | None = None) -> int:
