@@ -25,7 +25,6 @@ run = "docker compose down -v"
 
 [tasks.pre-commit]
 description = "Run pre-commit hooks on all files"
-depends = ["lint-fix"]
 run = "uv run pre-commit run --all-files"
 
 [tasks.test]
@@ -34,13 +33,6 @@ depends = ["pre-commit"]
 run = [
     "uv run coverage run -m pytest",
     "uv run coverage report --fail-under=80"
-]
-
-[tasks.lint-fix]
-description = "Fix all auto-fixable linting issues"
-run = [
-    "uv run ruff check --fix .",
-    "uv run ruff format .",
 ]
 
 [tasks.lint]
