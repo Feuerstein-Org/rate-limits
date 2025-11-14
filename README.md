@@ -261,7 +261,7 @@ redis_limiter = SyncRedisTokenBucket(connection=redis_conn, name="api", capacity
 
 #### Consuming Multiple Tokens Per Request
 
-You can control how many tokens are consumed per operation using the `tokens_to_consume` parameter. There are two ways to do this:
+You can control how many tokens are consumed per operation using the `tokens_to_consume` parameter. This can be any non-negative number, including 0 for zero-cost operations. There are two ways to do this:
 
 **1. Set at initialization time:**
 
@@ -301,6 +301,9 @@ with limiter(5):
 
 with limiter(10):
     make_extra_large_request()  # Dynamically consumes 10 tokens
+
+with limiter(0):
+    make_free_request()  # Dynamically consumes 0 tokens - free operation
 ```
 
 This works for all token bucket implementations (sync/async, Redis/local):
