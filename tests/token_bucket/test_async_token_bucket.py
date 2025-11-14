@@ -275,3 +275,32 @@ async def test_dynamic_tokens_to_consume(connection_factory: ConnectionFactory) 
 
     # Should be around 2 seconds (need 3 tokens, have 0, refill 2/sec: 0->2->4 tokens)
     assert 1.9 <= elapsed <= 2.1
+
+
+@pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
+async def test_zero_cost_operations(connection_factory: ConnectionFactory) -> None:
+    """Test that 0 cost operations don't consume tokens or cause delays."""
+    config = MockTokenBucketConfig(capacity=2.0, refill_frequency=1.0, refill_amount=1.0, tokens_to_consume=1.0)
+    connection = await initialize_async_connection(connection_factory())
+    bucket = async_tokenbucket_factory(connection=connection, config=config)
+
+    start = time.perf_counter()
+
+    # Use 2 tokens from capacity
+    async with bucket(1):
+        pass
+    async with bucket(1):
+        pass
+
+    # Perform 10 more zero-cost operations - should complete instantly
+    for _ in range(10):
+        async with bucket(0):
+            pass
+
+    # This should require waiting for 1 token refill (~1 second)
+    async with bucket(1):
+        pass
+
+    elapsed = time.perf_counter() - start
+    # Should be around 1 second
+    assert 0.9 <= elapsed <= 1.1

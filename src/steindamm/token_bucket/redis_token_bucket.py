@@ -60,12 +60,16 @@ class SyncRedisTokenBucket(TokenBucketBase, SyncLuaScriptBase):
         self._temp_tokens_to_consume = tokens_to_consume
         return self
 
-    def __enter__(self) -> float:
+    def __enter__(self) -> None:
         """Acquire token(s) from the token bucket and sleep until they are available."""
         # Use temporary value if set by __call__, otherwise use instance default
         tokens_needed = (
             self._temp_tokens_to_consume if self._temp_tokens_to_consume is not None else self.tokens_to_consume
         )
+
+        if tokens_needed == 0:
+            return
+
         # Clear temporary value
         self._temp_tokens_to_consume = None
 
@@ -99,8 +103,6 @@ class SyncRedisTokenBucket(TokenBucketBase, SyncLuaScriptBase):
 
         # Sleep before returning
         time.sleep(sleep_time)
-
-        return sleep_time
 
     def __exit__(
         self,
@@ -168,6 +170,10 @@ class AsyncRedisTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
         tokens_needed = (
             self._temp_tokens_to_consume if self._temp_tokens_to_consume is not None else self.tokens_to_consume
         )
+
+        if tokens_needed == 0:
+            return
+
         # Clear temporary value
         self._temp_tokens_to_consume = None
 

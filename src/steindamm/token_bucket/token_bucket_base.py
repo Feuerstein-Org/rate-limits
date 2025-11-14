@@ -33,7 +33,7 @@ class TokenBucketBase(BaseModel):
     refill_amount: PositiveFloat = 1.0
     max_sleep: NonNegativeFloat = 30.0
     expiry: PositiveInt = 60  # TODO Add tests for this
-    tokens_to_consume: PositiveFloat = 1.0
+    tokens_to_consume: NonNegativeFloat = 1.0
     _temp_tokens_to_consume: float | None = None  # Used internally by __call__ for context manager
 
     @model_validator(mode="after")
@@ -119,8 +119,8 @@ class TokenBucketBase(BaseModel):
         if tokens_needed > self.capacity:
             raise ValueError("Requested tokens exceed bucket capacity")
 
-        if tokens_needed <= 0:
-            raise ValueError("Must consume at least 1 token")
+        if tokens_needed < 0:
+            raise ValueError("Can't consume negative tokens")
 
         now = int(time.time() * 1000)
         time_between_slots = self.refill_frequency * 1000

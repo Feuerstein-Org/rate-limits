@@ -32,9 +32,9 @@ if tokens_to_consume > capacity then
     return redis.error_reply("Requested tokens exceed bucket capacity")
 end
 
--- Validate that tokens_to_consume is positive
-if tokens_to_consume <= 0 then
-    return redis.error_reply("Must consume at least 1 token")
+-- Validate that tokens_to_consume is non-negative
+if tokens_to_consume < 0 then
+    return redis.error_reply("Can't consume negative tokens")
 end
 
 -- Keys

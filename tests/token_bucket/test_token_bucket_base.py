@@ -31,6 +31,7 @@ from steindamm.token_bucket.token_bucket_base import TokenBucketBase
         ({"refill_amount": "test"}, ValidationError),
         ({"refill_amount": None}, ValidationError),
         ({"tokens_to_consume": 0.5}, None),
+        ({"tokens_to_consume": 0}, None),
         ({"tokens_to_consume": -1}, ValidationError),
         ({"tokens_to_consume": "test"}, ValidationError),
         ({"tokens_to_consume": None}, ValidationError),

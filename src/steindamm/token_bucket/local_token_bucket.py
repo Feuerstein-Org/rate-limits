@@ -77,6 +77,10 @@ class SyncLocalTokenBucket(TokenBucketBase):
         tokens_needed = (
             self._temp_tokens_to_consume if self._temp_tokens_to_consume is not None else self.tokens_to_consume
         )
+
+        if tokens_needed == 0:
+            return
+
         # Clear temporary value
         self._temp_tokens_to_consume = None
 
@@ -157,6 +161,10 @@ class AsyncLocalTokenBucket(TokenBucketBase):
         tokens_needed = (
             self._temp_tokens_to_consume if self._temp_tokens_to_consume is not None else self.tokens_to_consume
         )
+
+        if tokens_needed == 0:
+            return
+
         # Clear temporary value
         self._temp_tokens_to_consume = None
 
