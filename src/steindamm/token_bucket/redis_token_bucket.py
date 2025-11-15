@@ -102,6 +102,9 @@ class SyncRedisTokenBucket(TokenBucketBase, SyncLuaScriptBase):
             raise
 
         # Sleep before returning
+        if sleep_time == 0:
+            return
+
         time.sleep(sleep_time)
 
     def __exit__(
@@ -206,6 +209,9 @@ class AsyncRedisTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
             raise
 
         # Sleep before returning
+        if sleep_time == 0:
+            return
+
         await asyncio.sleep(sleep_time)
 
     async def __aexit__(

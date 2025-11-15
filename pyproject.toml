@@ -59,6 +59,7 @@ dev = [
     "pyright[nodejs]",
     "pytest-randomly",
     "pytest-socket",
+    "pytest-mock"
 ]
 
 [build-system]

@@ -89,6 +89,8 @@ class SyncLocalTokenBucket(TokenBucketBase):
             timestamp = self.execute_local_token_bucket_logic(self._buckets, tokens_needed)
 
         sleep_time = self.parse_timestamp(timestamp)
+        if sleep_time == 0:
+            return
 
         time.sleep(sleep_time)
 
@@ -174,6 +176,9 @@ class AsyncLocalTokenBucket(TokenBucketBase):
         timestamp = self.execute_local_token_bucket_logic(self._buckets, tokens_needed)
 
         sleep_time = self.parse_timestamp(timestamp)
+        if sleep_time == 0:
+            return
+
         await asyncio.sleep(sleep_time)
 
     async def __aexit__(

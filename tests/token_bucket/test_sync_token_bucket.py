@@ -7,6 +7,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from functools import partial
 
 import pytest
+from pytest_mock import MockerFixture
 from redis import Redis
 from redis.cluster import RedisCluster
 
@@ -309,3 +310,28 @@ def test_zero_cost_operations(connection_factory: ConnectionFactory) -> None:
     elapsed = time.perf_counter() - start
     # Should be around 1 second
     assert 0.9 <= elapsed <= 1.1
+
+
+@pytest.mark.parametrize("connection_factory", SYNC_CONNECTIONS)
+def test_no_sleep_when_tokens_available(connection_factory: ConnectionFactory, mocker: "MockerFixture") -> None:
+    """Test that time.sleep is not called when tokens are immediately available."""
+    mock_sleep = mocker.patch("time.sleep")
+
+    config = MockTokenBucketConfig(capacity=5.0)
+    bucket = sync_tokenbucket_factory(connection=connection_factory(), config=config)
+
+    # First 5 operations should have tokens available (capacity=5)
+    # and should NOT call time.sleep
+    for _ in range(5):
+        with bucket(1):
+            pass
+
+    # Verify time.sleep was never called
+    mock_sleep.assert_not_called()
+
+    # The 6th operation requires waiting for a refill and SHOULD call time.sleep
+    with bucket(1):
+        pass
+
+    # Now time.sleep should have been called exactly once
+    mock_sleep.assert_called_once()

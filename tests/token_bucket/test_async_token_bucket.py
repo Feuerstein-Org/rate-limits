@@ -7,6 +7,7 @@ import time
 from functools import partial
 
 import pytest
+from pytest_mock import MockerFixture
 from redis.asyncio import Redis
 from redis.asyncio.cluster import RedisCluster
 
@@ -304,3 +305,28 @@ async def test_zero_cost_operations(connection_factory: ConnectionFactory) -> No
     elapsed = time.perf_counter() - start
     # Should be around 1 second
     assert 0.9 <= elapsed <= 1.1
+
+
+@pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
+async def test_no_sleep_when_tokens_available(connection_factory: ConnectionFactory, mocker: "MockerFixture") -> None:
+    """Test that asyncio.sleep is not called when tokens are immediately available."""
+    mock_sleep = mocker.patch("asyncio.sleep")
+
+    config = MockTokenBucketConfig(capacity=5.0)
+    bucket = async_tokenbucket_factory(connection=connection_factory(), config=config)
+
+    # First 5 operations should have tokens available (capacity=5)
+    # and should NOT call asyncio.sleep
+    for _ in range(5):
+        async with bucket(1):
+            pass
+
+    # Verify asyncio.sleep was never called
+    mock_sleep.assert_not_called()
+
+    # The 6th operation requires waiting for a refill and SHOULD call asyncio.sleep
+    async with bucket(1):
+        pass
+
+    # Now asyncio.sleep should have been called exactly once
+    mock_sleep.assert_called_once()
