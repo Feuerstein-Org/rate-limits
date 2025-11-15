@@ -1,6 +1,6 @@
 [project]
 name = "steindamm"
-version = "0.8.2"
+version = "0.8.3"
 description = "Distributed token bucket and semphore"
 authors = [{ name = "Emil Aliyev", email = "ea01052002@gmail.com" }, { name = "Sondre Lillebø Gundersen", email = "sondrelg@live.no" }]
 requires-python = ">=3.11"
