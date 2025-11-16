@@ -5,6 +5,7 @@ import logging
 import re
 import time
 from functools import partial
+from collections.abc import Callable
 
 import pytest
 from pytest_mock import MockerFixture
@@ -24,7 +25,7 @@ from tests.conftest import (
 
 logger = logging.getLogger(__name__)
 
-ConnectionFactory = partial[Redis] | partial[RedisCluster]
+ConnectionFactory = partial[Redis] | partial[RedisCluster] | Callable[[], None]
 
 
 @pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
