@@ -45,6 +45,12 @@ from steindamm.token_bucket.token_bucket_base import TokenBucketBase
         ({"max_sleep": 0}, None),
         ({"max_sleep": "test"}, ValidationError),
         ({"max_sleep": None}, ValidationError),
+        ({"expiry": 60}, None),
+        ({"expiry": 0}, ValidationError),
+        ({"expiry": -1}, ValidationError),
+        ({"expiry": 1.5}, ValidationError),
+        ({"expiry": "test"}, ValidationError),
+        ({"expiry": None}, ValidationError),
         ({"window_start_time": datetime(2020, 1, 1)}, None),  # Past datetime is valid
         ({"window_start_time": datetime(2099, 1, 1)}, ValidationError),  # Past datetime is invalid
         ({"window_start_time": "not_a_datetime"}, ValidationError),
