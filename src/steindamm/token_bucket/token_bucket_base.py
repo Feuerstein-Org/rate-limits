@@ -34,7 +34,9 @@ class TokenBucketBase(BaseModel):
     max_sleep: NonNegativeFloat = 30.0
     expiry: PositiveInt = 60  # TODO Add tests for this
     tokens_to_consume: NonNegativeFloat = 1.0
+    window_start_time: datetime | None = None  # Datetime in the past for window alignment
     _temp_tokens_to_consume: float | None = None  # Used internally by __call__ for context manager
+    _window_start_timestamp: float | None = None  # Internal: Unix timestamp derived from window_start_time
 
     @model_validator(mode="after")
     def validate_token_bucket_config(self) -> Self:
@@ -42,6 +44,16 @@ class TokenBucketBase(BaseModel):
         # Set initial_tokens to capacity if not explicitly provided
         if self.initial_tokens is None:
             self.initial_tokens = self.capacity
+
+        # Validate and convert window_start_time to timestamp
+        if self.window_start_time is not None:
+            now = datetime.now()
+            if self.window_start_time > now:
+                raise ValueError(
+                    f"Invalid token bucket '{self.name}': window_start_time ({self.window_start_time}) "
+                    f"must be in the past (current time: {now})."
+                )
+            self._window_start_timestamp = self.window_start_time.timestamp()
 
         if self.refill_amount > self.capacity:
             raise ValueError(
@@ -68,7 +80,7 @@ class TokenBucketBase(BaseModel):
         )
         raise MaxSleepExceededError(detailed_msg)
 
-    def parse_timestamp(self, timestamp: int) -> float:
+    def parse_timestamp(self, timestamp: float) -> float:
         """
         Parse timestamp and calculate sleep time.
 
@@ -92,7 +104,9 @@ class TokenBucketBase(BaseModel):
         return sleep_time
 
     # TODO: Add whitebox tests for this method
-    def execute_local_token_bucket_logic(self, buckets: dict[str, dict], tokens_to_consume: float | None = None) -> int:
+    def execute_local_token_bucket_logic(
+        self, buckets: dict[str, dict], tokens_to_consume: float | None = None
+    ) -> float:
         """
         Execute the token bucket algorithm logic locally.
 
@@ -107,7 +121,7 @@ class TokenBucketBase(BaseModel):
             tokens_to_consume: Number of tokens to consume. If None, uses self.tokens_to_consume.
 
         Returns:
-            int: The slot timestamp in milliseconds when tokens are available.
+            float: The slot timestamp in milliseconds when tokens are available.
 
         """
         # This method should mirror the lua script logic as closely as possible
@@ -122,17 +136,23 @@ class TokenBucketBase(BaseModel):
         if tokens_needed < 0:
             raise ValueError("Can't consume negative tokens")
 
-        now = int(time.time() * 1000)
+        now = time.time() * 1000
         time_between_slots = self.refill_frequency * 1000
 
         # Initialize bucket state (None for new buckets)
         bucket_data = buckets.get(self.key)
 
         if bucket_data is None:
-            # New bucket: use initial_tokens and current time as slot
+            # New bucket: use initial_tokens and aligned slot if window_start_time is set
             initial_tokens = self.initial_tokens if self.initial_tokens is not None else self.capacity
             tokens = min(initial_tokens, self.capacity)
-            slot = now
+            if self._window_start_timestamp is not None:
+                # Align slot to window_start_time
+                slot_start_ms = self._window_start_timestamp * 1000
+                slots_since_start = (now - slot_start_ms) // time_between_slots
+                slot = slot_start_ms + slots_since_start * time_between_slots
+            else:
+                slot = now
         else:
             # Existing bucket: retrieve stored state
             slot = bucket_data["slot"]
@@ -142,7 +162,13 @@ class TokenBucketBase(BaseModel):
             slots_passed = (now - slot) // time_between_slots
             if slots_passed > 0:
                 tokens = min(tokens + slots_passed * self.refill_amount, self.capacity)
-                slot = now
+                if self._window_start_timestamp is not None:
+                    # Align slot to window_start_time
+                    slot_start_ms = self._window_start_timestamp * 1000
+                    slots_since_start = (now - slot_start_ms) // time_between_slots
+                    slot = slot_start_ms + slots_since_start * time_between_slots
+                else:
+                    slot = now
 
         # If not enough tokens are available, move to the next slot(s) and refill accordingly
         if tokens < tokens_needed:
@@ -160,7 +186,7 @@ class TokenBucketBase(BaseModel):
         # Persist updated state
         buckets[self.key] = {"slot": slot, "tokens": tokens, "last_update": time.time()}
 
-        return int(slot)
+        return slot
 
     @property
     def key(self) -> str:

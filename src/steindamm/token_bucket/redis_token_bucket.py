@@ -74,8 +74,8 @@ class SyncRedisTokenBucket(TokenBucketBase, SyncLuaScriptBase):
         self._temp_tokens_to_consume = None
 
         try:
-            timestamp: int = cast(
-                int,
+            timestamp: float = cast(
+                float,
                 self.script(
                     keys=[self.key],
                     args=[
@@ -86,6 +86,7 @@ class SyncRedisTokenBucket(TokenBucketBase, SyncLuaScriptBase):
                         self.expiry,
                         tokens_needed,
                         self.max_sleep,
+                        self._window_start_timestamp or 0,
                     ],
                 ),
             )
@@ -181,8 +182,8 @@ class AsyncRedisTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
         self._temp_tokens_to_consume = None
 
         try:
-            timestamp: int = cast(
-                int,
+            timestamp: float = cast(
+                float,
                 await self.script(
                     keys=[self.key],
                     args=[
@@ -193,6 +194,7 @@ class AsyncRedisTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
                         self.expiry,
                         tokens_needed,
                         self.max_sleep,
+                        self._window_start_timestamp or 0,
                     ],
                 ),
             )

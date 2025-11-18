@@ -1,5 +1,6 @@
 """Contains tests for the TokenBucketConfig initialization and type validation."""
 
+from datetime import datetime
 from typing import Any
 
 import pytest
@@ -44,6 +45,9 @@ from steindamm.token_bucket.token_bucket_base import TokenBucketBase
         ({"max_sleep": 0}, None),
         ({"max_sleep": "test"}, ValidationError),
         ({"max_sleep": None}, ValidationError),
+        ({"window_start_time": datetime(2020, 1, 1)}, None),  # Past datetime is valid
+        ({"window_start_time": datetime(2099, 1, 1)}, ValidationError),  # Past datetime is invalid
+        ({"window_start_time": "not_a_datetime"}, ValidationError),
     ],
 )
 def test_init_types(config_params: dict[str, Any], error: type[ValidationError] | None) -> None:

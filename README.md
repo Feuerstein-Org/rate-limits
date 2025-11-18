@@ -84,6 +84,7 @@ limiter = AsyncTokenBucket(
     initial_tokens=None,       # start with full capacity (default: None, which uses capacity)
     max_sleep=30,              # raise an error if there are no free tokens for X seconds, 0 never expires (default: 30.0)
     tokens_to_consume=1,       # consume 1 token per request (default: 1.0)
+    window_start_time=None,    # align the first window start to a specific past datetime (default: None, no alignment)
 )
 
 async def get_foo():
@@ -142,6 +143,7 @@ limiter = AsyncTokenBucket(
     max_sleep=30,
     expiry=60,                 # set expiry on Redis keys in seconds (default: 60)
     tokens_to_consume=1,
+    window_start_time=None,    # align the first window start to a specific past datetime (default: None, no alignment)
 )
 
 async def get_foo():
@@ -180,68 +182,6 @@ def main():
         requests.get(...)
 ```
 
-### Semaphore
-
-The semaphore classes are useful when you have concurrency restrictions;
-e.g., say you're allowed 5 active requests at the time for a given API token.
-
-**Note:** Currently, only Redis-based semaphores are available. Local (in-memory) semaphore implementation is planned for a future release.
-
-Beware that the client will block until the Semaphore is acquired,
-or the `max_sleep` limit is exceeded. If the `max_sleep` limit is exceeded, a `MaxSleepExceededError` is raised. Setting `max_sleep` to 0.0 will sleep "endlessly" - default is 30 seconds. On the other hand `expiry` is how long the semaphore will persist in Redis without any activity (acquires or releases). You might need to adjust both to your requirements.
-
-Here's how you might use the async version:
-
-```python
-import asyncio
-
-from httpx import AsyncClient
-from redis.asyncio import Redis
-
-from steindamm import AsyncSemaphore
-
-# All properties have defaults except name and connection
-limiter = AsyncSemaphore(
-    connection=Redis.from_url("redis://localhost:6379"),
-    name="foo",    # name of the resource you are limiting traffic for
-    capacity=5,    # allow 5 concurrent requests (default: 5)
-    max_sleep=30,  # raise an error if it takes longer than 30 seconds to acquire the semaphore (default: 30.0)
-    expiry=60,     # set expiry on the semaphore keys in Redis to prevent deadlocks (default: 60)
-)
-
-async def get_foo():
-    async with AsyncClient() as client:
-        async with limiter:
-            await client.get(...)
-
-
-async def main():
-    await asyncio.gather(
-        get_foo() for i in range(100)
-    )
-```
-
-and here is how you might use the sync version:
-
-```python
-import requests
-from redis import Redis
-
-from steindamm import SyncSemaphore
-
-
-limiter = SyncSemaphore(
-    connection=Redis.from_url("redis://localhost:6379"),
-    name="foo",
-    capacity=5,
-    max_sleep=30,
-    expiry=60,
-)
-
-def main():
-    with limiter:
-        requests.get(...)
-```
 
 #### Using Explicit Implementation Classes
 
@@ -320,6 +260,59 @@ async with async_limiter(5):
     await make_large_request()  # Dynamically: 5 tokens
 ```
 
+#### Aligning Token Bucket Windows to Specific Times - Fixed Window Algorithm
+
+By default, token buckets start their refill cycles from when they're first used. Essentially the window starts as soon as the first client makes a request, you can however align bucket windows to specific timestamps using the `window_start_time` parameter. This is useful for scenarios like:
+
+- Aligning rate limits to calendar boundaries (e.g., start of hour, day, or week)
+- Synchronizing multiple instances to share the same refill schedule
+- Implementing fixed-window rate limits with specific start times
+
+**Example: Align to the start of the current hour**
+
+```python
+from datetime import datetime, timezone
+from steindamm import SyncTokenBucket
+
+# Calculate the start of the current hour
+now = datetime.now(timezone.utc)
+hour_start = now.replace(minute=0, second=0, microsecond=0)
+
+# Create a bucket that refills at the top of each hour
+limiter = SyncTokenBucket(
+    name="hourly-api",
+    capacity=100,
+    refill_frequency=3600,     # 1 hour in seconds
+    refill_amount=100,         # Refill all tokens at once
+    window_start_time=hour_start # Align to the start of the hour
+)
+
+with limiter:
+    make_api_call()
+```
+
+**Example: Align to midnight for daily limits**
+
+```python
+from datetime import datetime, timezone
+
+# Calculate midnight of the current day
+now = datetime.now(timezone.utc)
+midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+limiter = SyncTokenBucket(
+    name="daily-api",
+    capacity=1000,
+    refill_frequency=86400,    # 24 hours in seconds
+    refill_amount=1000,        # Daily quota
+    window_start_time=midnight
+)
+```
+
+**Important notes:**
+- `window_start_time` must be a `datetime` object in the **past** (raises `ValueError` if in the future)
+- Works with both local and Redis-based token buckets
+- All instances sharing the same `name` need to use the same `window_start_time` to avoid undefined behavior
 
 
 ### Using them as a decorator
@@ -362,6 +355,69 @@ async def fetch_foo(id: UUID) -> Foo:
 @rate_limit(name="bar", capacity=10)
 async def fetch_bar(id: UUID) -> Bar:
     ...
+```
+
+### Semaphore
+
+The semaphore classes are useful when you have concurrency restrictions;
+e.g., say you're allowed 5 active requests at the time for a given API token.
+
+**Note:** Currently, only Redis-based semaphores are available. Local (in-memory) semaphore implementation is planned for a future release.
+
+Beware that the client will block until the Semaphore is acquired,
+or the `max_sleep` limit is exceeded. If the `max_sleep` limit is exceeded, a `MaxSleepExceededError` is raised. Setting `max_sleep` to 0.0 will sleep "endlessly" - default is 30 seconds. On the other hand `expiry` is how long the semaphore will persist in Redis without any activity (acquires or releases). You might need to adjust both to your requirements.
+
+Here's how you might use the async version:
+
+```python
+import asyncio
+
+from httpx import AsyncClient
+from redis.asyncio import Redis
+
+from steindamm import AsyncSemaphore
+
+# All properties have defaults except name and connection
+limiter = AsyncSemaphore(
+    connection=Redis.from_url("redis://localhost:6379"),
+    name="foo",    # name of the resource you are limiting traffic for
+    capacity=5,    # allow 5 concurrent requests (default: 5)
+    max_sleep=30,  # raise an error if it takes longer than 30 seconds to acquire the semaphore (default: 30.0)
+    expiry=60,     # set expiry on the semaphore keys in Redis to prevent deadlocks (default: 60)
+)
+
+async def get_foo():
+    async with AsyncClient() as client:
+        async with limiter:
+            await client.get(...)
+
+
+async def main():
+    await asyncio.gather(
+        get_foo() for i in range(100)
+    )
+```
+
+and here is how you might use the sync version:
+
+```python
+import requests
+from redis import Redis
+
+from steindamm import SyncSemaphore
+
+
+limiter = SyncSemaphore(
+    connection=Redis.from_url("redis://localhost:6379"),
+    name="foo",
+    capacity=5,
+    max_sleep=30,
+    expiry=60,
+)
+
+def main():
+    with limiter:
+        requests.get(...)
 ```
 
 ## Contributing

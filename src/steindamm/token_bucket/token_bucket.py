@@ -11,6 +11,7 @@ You can also use the respective bucket classes directly.
  - AsyncRedisTokenBucket
 """
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from steindamm import AsyncLocalTokenBucket, SyncLocalTokenBucket
@@ -87,6 +88,7 @@ class SyncTokenBucket:
         max_sleep: float = 30.0,
         expiry: int = 60,  # TODO: Add tests for this
         tokens_to_consume: float = 1.0,
+        window_start_time: datetime | None = None,
         connection: "SyncRedis | SyncRedisCluster | None" = None,
     ) -> "SyncRedisTokenBucket | SyncLocalTokenBucket":
         if connection is not None:
@@ -107,6 +109,7 @@ class SyncTokenBucket:
                 max_sleep=max_sleep,
                 expiry=expiry,
                 tokens_to_consume=tokens_to_consume,
+                window_start_time=window_start_time,
             )
         return SyncLocalTokenBucket(
             name=name,
@@ -117,6 +120,7 @@ class SyncTokenBucket:
             max_sleep=max_sleep,
             expiry=expiry,
             tokens_to_consume=tokens_to_consume,
+            window_start_time=window_start_time,
         )
 
 
@@ -175,6 +179,7 @@ class AsyncTokenBucket:
         max_sleep: float = 30.0,
         expiry: int = 60,  # TODO: Add tests for this
         tokens_to_consume: float = 1.0,
+        window_start_time: datetime | None = None,
         connection: "AsyncRedis | AsyncRedisCluster | None" = None,
     ) -> "AsyncRedisTokenBucket | AsyncLocalTokenBucket":
         if connection is not None:
@@ -195,6 +200,7 @@ class AsyncTokenBucket:
                 max_sleep=max_sleep,
                 expiry=expiry,
                 tokens_to_consume=tokens_to_consume,
+                window_start_time=window_start_time,
             )
         return AsyncLocalTokenBucket(
             name=name,
@@ -205,4 +211,5 @@ class AsyncTokenBucket:
             max_sleep=max_sleep,
             expiry=expiry,
             tokens_to_consume=tokens_to_consume,
+            window_start_time=window_start_time,
         )

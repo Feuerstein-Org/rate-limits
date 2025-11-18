@@ -26,6 +26,7 @@ local time_between_slots = tonumber(ARGV[4]) * 1000 -- Convert to milliseconds
 local expiry = tonumber(ARGV[5])
 local tokens_to_consume = tonumber(ARGV[6]) -- Number of tokens to consume
 local max_sleep_ms = tonumber(ARGV[7]) * 1000 -- Convert to milliseconds
+local window_start_time = tonumber(ARGV[8]) * 1000 or 0 -- Unix timestamp (0 means no alignment)
 
 -- Validate that tokens_to_consume doesn't exceed capacity
 if tokens_to_consume > capacity then
@@ -42,11 +43,17 @@ local data_key = KEYS[1]
 
 -- Get current time in milliseconds from Redis
 local time_parts = redis.call('TIME')
-local now = tonumber(time_parts[1]) * 1000 + math.floor(tonumber(time_parts[2]) / 1000)
+local now = tonumber(time_parts[1]) * 1000 + (tonumber(time_parts[2]) / 1000)
 
 -- Default bucket values (used if no bucket exists yet)
 local tokens = math.min(initial_tokens, capacity)
 local slot = now
+
+-- If window_start_time is set, align the initial slot
+if window_start_time > 0 then
+    local slots_since_start = math.floor((now - window_start_time) / time_between_slots)
+    slot = window_start_time + slots_since_start * time_between_slots
+end
 
 -- Retrieve stored state, if any
 local data = redis.call('GET', data_key)
@@ -60,11 +67,13 @@ if data then
     if slots_passed > 0 then
         -- Refill the tokens based on the number of slots passed, capped by capacity
         tokens = math.min(tokens + slots_passed * refill_amount, capacity)
-        -- Update the slot to this run
-        -- The previously added +20 ms execution penalty was removed as it was not needed
-        -- and all it did was add additional latency to all requests and in our case,
-        -- timing is handled gracefully with the condition used (wake_up_time < now)
-        slot = now
+        -- Update the slot to the current aligned slot
+        if window_start_time > 0 then
+            local slots_since_start = math.floor((now - window_start_time) / time_between_slots)
+            slot = window_start_time + slots_since_start * time_between_slots
+        else
+            slot = now
+        end
     end
 end
 
@@ -91,7 +100,7 @@ end
 tokens = tokens - tokens_to_consume
 
 -- Save updated state and set expiry
-redis.call('SETEX', data_key, expiry, string.format('%d %d', slot, tokens))
+redis.call('SETEX', data_key, expiry, string.format('%.4f %.4f', slot, tokens))
 
 -- Return the slot when the next token(s) will be available
 return slot

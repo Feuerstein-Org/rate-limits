@@ -4,6 +4,7 @@ import re
 import time
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
+from datetime import datetime
 from functools import partial
 
 import pytest
@@ -335,3 +336,49 @@ def test_no_sleep_when_tokens_available(connection_factory: ConnectionFactory, m
 
     # Now time.sleep should have been called exactly once
     mock_sleep.assert_called_once()
+
+
+@pytest.mark.parametrize("connection_factory", SYNC_CONNECTIONS)
+@pytest.mark.parametrize(
+    "window_start_time_offset, tokens_to_consume_first, timeout_first, tokens_to_consume_second, timeout_second",
+    [
+        # Window started 3s ago, we're 3s into a 5s window with 2s remaining until next refill.
+        # Consume all 5 tokens immediately (no wait), then wait 2s for next window to get 5 more tokens.
+        (3.0, 5, 0, 5, 2.0),
+        (4.0, 3, 0, 3, 1.0),
+        (2.0, 4, 0, 5, 3.0),
+    ],
+)
+async def test_window_start_time_alignment(  # noqa: PLR0913
+    connection_factory: ConnectionFactory,
+    window_start_time_offset: float,
+    tokens_to_consume_first: int,
+    timeout_first: float,
+    tokens_to_consume_second: int,
+    timeout_second: float,
+) -> None:
+    """Test that window_start_time aligns bucket windows to specific timestamps."""
+    # Set window_start_time to x seconds ago with 5-second windows
+    window_start = datetime.fromtimestamp(time.time() - window_start_time_offset)
+
+    config = MockTokenBucketConfig(
+        capacity=5,
+        refill_frequency=5,  # 5 second windows
+        refill_amount=5,
+        window_start_time=window_start,
+    )
+    bucket = sync_tokenbucket_factory(connection=connection_factory(), config=config)
+
+    # First request
+    start = time.perf_counter()
+    with bucket(tokens_to_consume_first):
+        pass
+    elapsed_first = time.perf_counter() - start
+    assert timeout_first - 0.1 <= elapsed_first <= timeout_first + 0.1
+
+    # Second request
+    start = time.perf_counter()
+    with bucket(tokens_to_consume_second):
+        pass
+    elapsed_second = time.perf_counter() - start
+    assert timeout_second - 0.1 <= elapsed_second <= timeout_second + 0.1

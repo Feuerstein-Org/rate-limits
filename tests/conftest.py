@@ -5,6 +5,7 @@ import logging
 import time
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
+from datetime import datetime
 from functools import partial
 from logging import Logger
 from uuid import uuid4
@@ -91,6 +92,7 @@ class MockTokenBucketConfig:
     max_sleep: float = 0.0
     initial_tokens: float | None = None
     tokens_to_consume: float = 1.0
+    window_start_time: datetime | None = None
 
 
 def sync_tokenbucket_factory(
