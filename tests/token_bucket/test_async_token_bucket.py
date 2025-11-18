@@ -355,15 +355,16 @@ async def test_window_start_time_alignment(  # noqa: PLR0913
 ) -> None:
     """Test that window_start_time aligns bucket windows to specific timestamps."""
     # Set window_start_time to x seconds ago with 5-second windows
-    window_start = datetime.fromtimestamp(time.time() - window_start_time_offset)
+    connection = await initialize_async_connection(connection_factory())
 
+    window_start = datetime.fromtimestamp(time.time() - window_start_time_offset)
     config = MockTokenBucketConfig(
         capacity=5,
         refill_frequency=5,  # 5 second windows
         refill_amount=5,
         window_start_time=window_start,
     )
-    bucket = async_tokenbucket_factory(connection=connection_factory(), config=config)
+    bucket = async_tokenbucket_factory(connection=connection, config=config)
 
     # First request
     start = time.perf_counter()
