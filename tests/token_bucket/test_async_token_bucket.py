@@ -13,7 +13,7 @@ from pytest_mock import MockerFixture
 from redis.asyncio import Redis
 from redis.asyncio.cluster import RedisCluster
 
-from steindamm import MaxSleepExceededError
+from steindamm import MaxSleepExceededError, NoTokensAvailableError
 from tests.conftest import (
     ASYNC_CONNECTIONS,
     IN_MEMORY,
@@ -201,7 +201,7 @@ async def test_async_max_sleep(connection_factory: ConnectionFactory) -> None:
 
     with pytest.raises(MaxSleepExceededError, match=expected_msg):
         async with bucket:
-            pass  # pragma: no cover
+            pass
 
 
 @pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
@@ -379,3 +379,93 @@ async def test_window_start_time_alignment(  # noqa: PLR0913
         pass
     elapsed_second = time.perf_counter() - start
     assert timeout_second - 0.1 <= elapsed_second <= timeout_second + 0.1
+
+
+@pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
+async def test_non_refilling_bucket_consumption_and_exhaustion(connection_factory: ConnectionFactory) -> None:
+    """Test that a non-refilling bucket consumption and exhaustion."""
+    connection = await initialize_async_connection(connection_factory())
+
+    config = MockTokenBucketConfig(
+        capacity=10.0,
+        refill_frequency=0.0,
+        refill_amount=0.0,
+        initial_tokens=10.0,
+    )
+    bucket = async_tokenbucket_factory(connection=connection, config=config)
+
+    start = time.perf_counter()
+
+    # Should be able to consume all 10 tokens immediately
+    async with bucket(3):
+        pass
+    async with bucket(3):
+        pass
+    async with bucket(4):
+        pass
+
+    elapsed = time.perf_counter() - start
+    # All operations should complete immediately since we have enough tokens
+    assert elapsed < 0.1
+
+    # Attempting to consume more should raise NoTokensAvailableError
+    expected_msg = (
+        rf"Token bucket '{config.name}' has run out of tokens\. "
+        rf"Available: 0(\.0)?, Requested: 1(\.0)?\. "
+        rf"This is a non-refilling bucket \(refill_amount=0(\.0)?, refill_frequency=0(\.0)?\)\."
+    )
+
+    with pytest.raises(NoTokensAvailableError, match=expected_msg):
+        async with bucket(1):
+            pass
+
+
+@pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
+async def test_non_refilling_bucket_with_low_initial_tokens(connection_factory: ConnectionFactory) -> None:
+    """Test non-refilling bucket with initial_tokens less than capacity."""
+    connection = await initialize_async_connection(connection_factory())
+
+    config = MockTokenBucketConfig(
+        capacity=10.0,
+        refill_frequency=0.0,
+        refill_amount=0.0,
+        initial_tokens=3.0,
+    )
+    bucket = async_tokenbucket_factory(connection=connection, config=config)
+
+    # Should be able to consume up to 3 tokens
+    async with bucket(3):
+        pass
+
+    # Attempting to consume more should raise NoTokensAvailableError
+    with pytest.raises(NoTokensAvailableError):
+        async with bucket(1):
+            pass
+
+
+@pytest.mark.parametrize("connection_factory", ASYNC_CONNECTIONS)
+async def test_non_refilling_bucket_zero_cost_operations(connection_factory: ConnectionFactory) -> None:
+    """Test that zero-cost operations work with non-refilling buckets even when exhausted."""
+    connection = await initialize_async_connection(connection_factory())
+
+    config = MockTokenBucketConfig(
+        capacity=2.0,
+        refill_frequency=0.0,
+        refill_amount=0.0,
+        initial_tokens=2.0,
+    )
+    bucket = async_tokenbucket_factory(connection=connection, config=config)
+
+    # Consume all tokens
+    async with bucket(2):
+        pass
+
+    # Zero-cost operations should still work
+    for _ in range(5):
+        async with bucket(0):
+            pass
+
+    # But attempting to consume tokens should fail
+    with pytest.raises(NoTokensAvailableError):
+        async with bucket(1):
+            pass

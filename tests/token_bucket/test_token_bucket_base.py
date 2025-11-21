@@ -54,6 +54,10 @@ from steindamm.token_bucket.token_bucket_base import TokenBucketBase
         ({"window_start_time": datetime(2020, 1, 1)}, None),  # Past datetime is valid
         ({"window_start_time": datetime(2099, 1, 1)}, ValidationError),  # Past datetime is invalid
         ({"window_start_time": "not_a_datetime"}, ValidationError),
+        ({"refill_amount": 0, "refill_frequency": 0}, None),  # Valid non-refilling bucket
+        ({"refill_amount": 0.0, "refill_frequency": 0.0}, None),
+        ({"refill_amount": 0, "refill_frequency": 1}, ValidationError),  # Invalid: only refill_amount is 0
+        ({"refill_amount": 1, "refill_frequency": 0}, ValidationError),  # Invalid: only refill_frequency is 0
     ],
 )
 def test_init_types(config_params: dict[str, Any], error: type[ValidationError] | None) -> None:

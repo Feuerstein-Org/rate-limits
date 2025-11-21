@@ -57,7 +57,10 @@ pip install steindamm redis
 The `TokenBucket` classes are useful if you're working with time-based
 rate limits. Say, you are allowed 100 requests per minute, for a given API token.
 
-If the `max_sleep` limit is exceeded, a `MaxSleepExceededError` is raised. Setting `max_sleep` to 0.0 will sleep "endlessly" - this is also the default value. On the other hand `expiry` is how long the token bucket will persist in Redis without any activity (acquires or releases). You might need to adjust both to your requirements.
+**Exception Handling:**
+- If the `max_sleep` limit is exceeded, a `MaxSleepExceededError` is raised. Setting `max_sleep` to 0.0 will sleep "endlessly" - this is also the default value.
+- If a non-refilling bucket (with `refill_amount=0` and `refill_frequency=0`) runs out of tokens, a `NoTokensAvailableError` is raised.
+- `expiry` controls how long the token bucket will persist in Redis without any activity (acquires or releases). You might need to adjust both to your requirements.
 
 #### Using Local (In-Memory) Token Bucket
 
@@ -259,6 +262,35 @@ async with async_limiter:
 async with async_limiter(5):
     await make_large_request()  # Dynamically: 5 tokens
 ```
+
+#### Non-Refilling Token Buckets (Fixed Quota)
+
+You can create a token bucket that never refills by setting both `refill_amount` and `refill_frequency` to 0. This is useful for implementing fixed quotas:
+
+```python
+from steindamm import SyncTokenBucket, NoTokensAvailableError
+
+# Create a bucket with a fixed quota of 100 tokens
+limiter = SyncTokenBucket(
+    name="api-quota",
+    capacity=100,
+    refill_frequency=0,  # Never refill
+    refill_amount=0,     # Never refill
+)
+
+try:
+    # Consume tokens until exhausted
+    for i in range(150):
+        with limiter:
+            make_api_call()
+except NoTokensAvailableError as e:
+    print(f"Quota exhausted: {e}")
+```
+
+**Key points:**
+- Both `refill_amount` and `refill_frequency` must be 0 (raises `ValidationError` if only one is 0)
+- Once tokens are exhausted, the bucket raises `NoTokensAvailableError` instead of waiting
+- You can use `initial_tokens` but since there are no refills simply setting `capacity` is enough
 
 #### Aligning Token Bucket Windows to Specific Times - Fixed Window Algorithm
 

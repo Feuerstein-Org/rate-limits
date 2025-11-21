@@ -11,7 +11,7 @@ SyncRedisTokenBucket, AsyncRedisTokenBucket, SyncLocalTokenBucket, or AsyncLocal
 from typing import Any
 
 # TODO: Add local semaphore implementation and update docs accordingly
-from steindamm.exceptions import MaxSleepExceededError
+from steindamm.exceptions import MaxSleepExceededError, NoTokensAvailableError
 from steindamm.token_bucket.local_token_bucket import AsyncLocalTokenBucket, SyncLocalTokenBucket
 from steindamm.token_bucket.token_bucket import AsyncTokenBucket, SyncTokenBucket
 
@@ -48,6 +48,7 @@ __all__ = (
     "AsyncSemaphore",  # type: ignore[reportUnsupportedDunderAll]
     "AsyncTokenBucket",
     "MaxSleepExceededError",
+    "NoTokensAvailableError",
     "SyncLocalTokenBucket",
     "SyncRedisTokenBucket",  # type: ignore[reportUnsupportedDunderAll]
     "SyncSemaphore",  # type: ignore[reportUnsupportedDunderAll]

@@ -22,7 +22,7 @@ redis.replicate_commands()
 local capacity = tonumber(ARGV[1])
 local refill_amount = tonumber(ARGV[2])
 local initial_tokens = tonumber(ARGV[3])
-local time_between_slots = tonumber(ARGV[4]) * 1000 -- Convert to milliseconds
+local refill_frequency = tonumber(ARGV[4]) * 1000 -- Convert to milliseconds
 local expiry = tonumber(ARGV[5])
 local tokens_to_consume = tonumber(ARGV[6]) -- Number of tokens to consume
 local max_sleep_ms = tonumber(ARGV[7]) * 1000 -- Convert to milliseconds
@@ -41,6 +41,9 @@ end
 -- Keys
 local data_key = KEYS[1]
 
+-- Check if this is a non-refilling bucket
+local is_non_refilling = (refill_amount == 0 or refill_frequency == 0)
+
 -- Get current time in milliseconds from Redis
 local time_parts = redis.call('TIME')
 local now = tonumber(time_parts[1]) * 1000 + (tonumber(time_parts[2]) / 1000)
@@ -51,8 +54,8 @@ local slot = now
 
 -- If window_start_time is set, align the initial slot
 if window_start_time > 0 then
-    local slots_since_start = math.floor((now - window_start_time) / time_between_slots)
-    slot = window_start_time + slots_since_start * time_between_slots
+    local slots_since_start = math.floor((now - window_start_time) / refill_frequency)
+    slot = window_start_time + slots_since_start * refill_frequency
 end
 
 -- Retrieve stored state, if any
@@ -62,28 +65,38 @@ if data then
     slot = tonumber(last_slot)
     tokens = tonumber(stored_tokens)
 
-    -- Calculate the number of slots that have passed since the last update
-    local slots_passed = math.floor((now - slot) / time_between_slots)
-    if slots_passed > 0 then
-        -- Refill the tokens based on the number of slots passed, capped by capacity
-        tokens = math.min(tokens + slots_passed * refill_amount, capacity)
-        -- Update the slot to the current aligned slot
-        if window_start_time > 0 then
-            local slots_since_start = math.floor((now - window_start_time) / time_between_slots)
-            slot = window_start_time + slots_since_start * time_between_slots
-        else
-            slot = now
+    -- Refill tokens based on elapsed time (skip for non-refilling buckets)
+    if not is_non_refilling then
+        -- Calculate the number of slots that have passed since the last update
+        local slots_passed = math.floor((now - slot) / refill_frequency)
+        if slots_passed > 0 then
+            -- Refill the tokens based on the number of slots passed, capped by capacity
+            tokens = math.min(tokens + slots_passed * refill_amount, capacity)
+            -- Update the slot to the current aligned slot
+            if window_start_time > 0 then
+                local slots_since_start = math.floor((now - window_start_time) / refill_frequency)
+                slot = window_start_time + slots_since_start * refill_frequency
+            else
+                slot = now
+            end
         end
     end
 end
 
 -- If not enough tokens are available, move to the next slot(s) and refill accordingly
 if tokens < tokens_to_consume then
+    if is_non_refilling then
+        -- Non-refilling bucket has run out of tokens
+        return redis.error_reply(string.format(
+            "No tokens available. Available: %.2f, Requested: %.2f. This is a non-refilling bucket.",
+            tokens, tokens_to_consume
+        ))
+    end
     -- Calculate how many additional tokens we need
     local needed_tokens = tokens_to_consume - tokens
     -- Calculate how many slots we need to move forward to get enough tokens
     local needed_slots = math.ceil(needed_tokens / refill_amount)
-    slot = slot + needed_slots * time_between_slots
+    slot = slot + needed_slots * refill_frequency
     tokens = tokens + needed_slots * refill_amount
     -- Clamp tokens to capacity
     tokens = math.min(tokens, capacity)

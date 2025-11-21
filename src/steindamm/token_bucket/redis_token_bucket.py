@@ -6,6 +6,7 @@ from types import TracebackType
 from typing import ClassVar, cast
 
 from steindamm.base import AsyncLuaScriptBase, SyncLuaScriptBase
+from steindamm.exceptions import NoTokensAvailableError
 from steindamm.token_bucket.token_bucket_base import TokenBucketBase
 
 
@@ -95,11 +96,28 @@ class SyncRedisTokenBucket(TokenBucketBase, SyncLuaScriptBase):
             sleep_time = self.parse_timestamp(timestamp)
 
         except Exception as e:
+            error_msg = str(e)
             # Lua script will return exception if max_sleep is exceeded
-            if "Time till next token exceeds max_sleep time:" in str(e):
-                sleep_time_str = str(e).split(":")[-1].strip()
+            if "Time till next token exceeds max_sleep time:" in error_msg:
+                sleep_time_str = error_msg.split(":")[-1].strip()
                 sleep_time = float(sleep_time_str)
                 self.raise_max_sleep_exception(sleep_time)  # Will raise MaxSleepExceededError
+            # Lua script will return exception if non-refilling bucket runs out of tokens
+            elif "No tokens available" in error_msg and "non-refilling bucket" in error_msg:
+                # Parse available and requested tokens from error message
+                try:
+                    parts = error_msg.split(", ")
+                    available = float(parts[0].split("Available: ")[1])
+                    requested = float(parts[1].split("Requested: ")[1])
+                except (IndexError, ValueError):
+                    available = 0.0
+                    requested = tokens_needed
+                raise NoTokensAvailableError(
+                    f"Token bucket '{self.name}' has run out of tokens. "
+                    f"Available: {available}, Requested: {requested}. "
+                    f"This is a non-refilling bucket (refill_amount={self.refill_amount}, "
+                    f"refill_frequency={self.refill_frequency})."
+                ) from None
             raise
 
         # Sleep before returning
@@ -203,11 +221,28 @@ class AsyncRedisTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
             sleep_time = self.parse_timestamp(timestamp)
 
         except Exception as e:
+            error_msg = str(e)
             # Lua script will return exception if max_sleep is exceeded
-            if "Time till next token exceeds max_sleep time:" in str(e):
-                sleep_time_str = str(e).split(":")[-1].strip()
+            if "Time till next token exceeds max_sleep time:" in error_msg:
+                sleep_time_str = error_msg.split(":")[-1].strip()
                 sleep_time = float(sleep_time_str)
                 self.raise_max_sleep_exception(sleep_time)  # Will raise MaxSleepExceededError
+            # Lua script will return exception if non-refilling bucket runs out of tokens
+            elif "No tokens available" in error_msg and "non-refilling bucket" in error_msg:
+                # Parse available and requested tokens from error message
+                try:
+                    parts = error_msg.split(", ")
+                    available = float(parts[0].split("Available: ")[1])
+                    requested = float(parts[1].split("Requested: ")[1])
+                except (IndexError, ValueError):
+                    available = 0.0
+                    requested = tokens_needed
+                raise NoTokensAvailableError(
+                    f"Token bucket '{self.name}' has run out of tokens. "
+                    f"Available: {available}, Requested: {requested}. "
+                    f"This is a non-refilling bucket (refill_amount={self.refill_amount}, "
+                    f"refill_frequency={self.refill_frequency})."
+                ) from None
             raise
 
         # Sleep before returning

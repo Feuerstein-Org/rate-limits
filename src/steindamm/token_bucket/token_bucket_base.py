@@ -12,7 +12,7 @@ from typing import Annotated, Self
 
 from pydantic import BaseModel, Field, model_validator
 
-from steindamm import MaxSleepExceededError
+from steindamm.exceptions import MaxSleepExceededError, NoTokensAvailableError
 
 # TODO: Shouldn't this be in a more global file?
 logger = getLogger(__name__)
@@ -28,9 +28,9 @@ class TokenBucketBase(BaseModel):
 
     name: str
     capacity: PositiveFloat = 5.0
-    refill_frequency: PositiveFloat = 1.0
+    refill_frequency: NonNegativeFloat = 1.0
     initial_tokens: NonNegativeFloat | None = None
-    refill_amount: PositiveFloat = 1.0
+    refill_amount: NonNegativeFloat = 1.0
     max_sleep: NonNegativeFloat = 30.0
     expiry: PositiveInt = 60  # TODO Add tests for this
     tokens_to_consume: NonNegativeFloat = 1.0
@@ -54,6 +54,18 @@ class TokenBucketBase(BaseModel):
                     f"must be in the past (current time: {now})."
                 )
             self._window_start_timestamp = self.window_start_time.timestamp()
+
+        # Validate zero refill configurations
+        if self.refill_frequency == 0 and self.refill_amount != 0:
+            raise ValueError(
+                f"Invalid token bucket '{self.name}': refill_frequency is 0 but refill_amount is {self.refill_amount}. "
+                f"Either set both to 0 for a non-refilling bucket, or set refill_frequency > 0."
+            )
+        if self.refill_amount == 0 and self.refill_frequency != 0:
+            raise ValueError(
+                f"Invalid token bucket '{self.name}': refill_amount is 0 but refill_frequency is {self.refill_frequency}. "
+                f"Either set both to 0 for a non-refilling bucket, or set refill_amount > 0."
+            )
 
         if self.refill_amount > self.capacity:
             raise ValueError(
@@ -137,7 +149,10 @@ class TokenBucketBase(BaseModel):
             raise ValueError("Can't consume negative tokens")
 
         now = time.time() * 1000
-        time_between_slots = self.refill_frequency * 1000
+
+        # Handle non-refilling buckets (refill_amount or refill_frequency is 0)
+        is_non_refilling = self.refill_amount == 0 or self.refill_frequency == 0
+        refill_frequency_ms = self.refill_frequency * 1000
 
         # Initialize bucket state (None for new buckets)
         bucket_data = buckets.get(self.key)
@@ -149,8 +164,8 @@ class TokenBucketBase(BaseModel):
             if self._window_start_timestamp is not None:
                 # Align slot to window_start_time
                 slot_start_ms = self._window_start_timestamp * 1000
-                slots_since_start = (now - slot_start_ms) // time_between_slots
-                slot = slot_start_ms + slots_since_start * time_between_slots
+                slots_since_start = (now - slot_start_ms) // refill_frequency_ms
+                slot = slot_start_ms + slots_since_start * refill_frequency_ms
             else:
                 slot = now
         else:
@@ -158,25 +173,34 @@ class TokenBucketBase(BaseModel):
             slot = bucket_data["slot"]
             tokens = bucket_data["tokens"]
 
-            # Refill tokens based on elapsed time
-            slots_passed = (now - slot) // time_between_slots
-            if slots_passed > 0:
-                tokens = min(tokens + slots_passed * self.refill_amount, self.capacity)
-                if self._window_start_timestamp is not None:
-                    # Align slot to window_start_time
-                    slot_start_ms = self._window_start_timestamp * 1000
-                    slots_since_start = (now - slot_start_ms) // time_between_slots
-                    slot = slot_start_ms + slots_since_start * time_between_slots
-                else:
-                    slot = now
+            # Refill tokens based on elapsed time (skip for non-refilling buckets)
+            if not is_non_refilling:
+                slots_passed = (now - slot) // refill_frequency_ms
+                if slots_passed > 0:
+                    tokens = min(tokens + slots_passed * self.refill_amount, self.capacity)
+                    if self._window_start_timestamp is not None:
+                        # Align slot to window_start_time
+                        slot_start_ms = self._window_start_timestamp * 1000
+                        slots_since_start = (now - slot_start_ms) // refill_frequency_ms
+                        slot = slot_start_ms + slots_since_start * refill_frequency_ms
+                    else:
+                        slot = now
 
         # If not enough tokens are available, move to the next slot(s) and refill accordingly
         if tokens < tokens_needed:
+            if is_non_refilling:
+                # Non-refilling bucket has run out of tokens - raise exception
+                raise NoTokensAvailableError(
+                    f"Token bucket '{self.name}' has run out of tokens. "
+                    f"Available: {tokens}, Requested: {tokens_needed}. "
+                    f"This is a non-refilling bucket (refill_amount={self.refill_amount}, "
+                    f"refill_frequency={self.refill_frequency})."
+                )
             # Calculate how many additional tokens we need
             needed_tokens = tokens_needed - tokens
             # Calculate how many slots we need to move forward to get enough tokens
             needed_slots = math.ceil(needed_tokens / self.refill_amount)
-            slot += needed_slots * time_between_slots
+            slot += needed_slots * refill_frequency_ms
             # Make sure we don't exceed capacity when refilling
             tokens = min(tokens + needed_slots * self.refill_amount, self.capacity)
 
