@@ -457,10 +457,11 @@ def main():
 Contributions are very welcome. Here's how to get started:
 
 - Clone the repo
-- Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and [mise](https://mise.jdx.dev/)
+- Install [mise en place](https://mise.jdx.dev/)
+- Run `mise trust` to trust the `mise.toml` file
 - Run `mise run install` to install dependencies
   If you prefer not to install mise, check the `mise.toml` file and
-  run the commands manually.
+  run the commands manually, this would also require you to install [uv](https://docs.astral.sh/uv/getting-started/installation/).
 - Make your code changes, with tests
 - Run tests with `mise run test` or `uv run pytest`
   Note that you will need to first spin up the redis docker containers. This can be done with `mise run test-setup` (and shut down with `mise run test-teardown`) or the full cycle can be run with `mise run test-full`.
