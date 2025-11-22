@@ -93,12 +93,7 @@ class TokenBucketBase(BaseModel):
         raise MaxSleepExceededError(detailed_msg)
 
     def parse_timestamp(self, timestamp: float) -> float:
-        """
-        Parse timestamp and calculate sleep time.
-
-        Used by both local and Redis token buckets however the sleep time validation is technically redundant
-        for Redis since it's done in the Lua script already
-        """
+        """Parse timestamp and calculate sleep time."""
         wake_up_time = datetime.fromtimestamp(timestamp / 1000)
         now = datetime.now()
 
@@ -107,16 +102,13 @@ class TokenBucketBase(BaseModel):
 
         sleep_time = (wake_up_time - now).total_seconds()
 
-        # Validate max_sleep for local buckets
-        if self.max_sleep != 0.0 and sleep_time > self.max_sleep:
-            self.raise_max_sleep_exception(sleep_time)
-
         # TODO make this debug and add more logs
         logger.info("Sleeping %s seconds (%s)", sleep_time, self.name)
         return sleep_time
 
     # TODO: Add whitebox tests for this method
-    def execute_local_token_bucket_logic(
+    # This mimics the logic in the lua script as closely as possible
+    def execute_local_token_bucket_logic(  # noqa: C901, PLR0912
         self, buckets: dict[str, dict], tokens_to_consume: float | None = None
     ) -> float:
         """
@@ -203,6 +195,11 @@ class TokenBucketBase(BaseModel):
             slot += needed_slots * refill_frequency_ms
             # Make sure we don't exceed capacity when refilling
             tokens = min(tokens + needed_slots * self.refill_amount, self.capacity)
+
+        # Validate max_sleep BEFORE consuming tokens
+        required_sleep = max(0.0, slot - now) / 1000  # Convert to seconds
+        if self.max_sleep > 0 and required_sleep > self.max_sleep:
+            self.raise_max_sleep_exception(required_sleep)
 
         # Consume the requested tokens
         tokens -= tokens_needed
