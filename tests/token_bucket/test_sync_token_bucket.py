@@ -244,6 +244,17 @@ def test_initial_tokens(
 
 
 @pytest.mark.parametrize("connection_factory", SYNC_CONNECTIONS)
+def test_initial_tokens_zero(connection_factory: ConnectionFactory) -> None:
+    """Test that initial_tokens=0 instantly raises MaxSleepExceededError when max_sleep is exceeded."""
+    # Create a fresh config with unique name to avoid Redis key collisions
+    config = MockTokenBucketConfig(capacity=5.0, initial_tokens=0.0, max_sleep=0.1)
+    bucket = sync_tokenbucket_factory(connection=connection_factory(), config=config)
+
+    with pytest.raises(MaxSleepExceededError), bucket:
+        pass
+
+
+@pytest.mark.parametrize("connection_factory", SYNC_CONNECTIONS)
 def test_dynamic_tokens_to_consume(connection_factory: ConnectionFactory) -> None:
     """Test that tokens_to_consume can be passed dynamically when using the context manager."""
     config = MockTokenBucketConfig(capacity=10.0, refill_frequency=1.0, refill_amount=2.0, tokens_to_consume=1.0)

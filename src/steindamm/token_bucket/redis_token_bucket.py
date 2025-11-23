@@ -82,7 +82,7 @@ class SyncRedisTokenBucket(TokenBucketBase, SyncLuaScriptBase):
                     args=[
                         self.capacity,
                         self.refill_amount,
-                        self.initial_tokens or self.capacity,
+                        cast(float, self.initial_tokens),  # Set in config validator
                         self.refill_frequency,
                         self.expiry,
                         tokens_needed,
@@ -207,7 +207,7 @@ class AsyncRedisTokenBucket(TokenBucketBase, AsyncLuaScriptBase):
                     args=[
                         self.capacity,
                         self.refill_amount,
-                        self.initial_tokens or self.capacity,
+                        cast(float, self.initial_tokens),  # Set in config validator
                         self.refill_frequency,
                         self.expiry,
                         tokens_needed,

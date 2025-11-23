@@ -8,7 +8,7 @@ import math
 import time
 from datetime import datetime
 from logging import getLogger
-from typing import Annotated, Self
+from typing import Annotated, Self, cast
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -151,7 +151,7 @@ class TokenBucketBase(BaseModel):
 
         if bucket_data is None:
             # New bucket: use initial_tokens and aligned slot if window_start_time is set
-            initial_tokens = self.initial_tokens if self.initial_tokens is not None else self.capacity
+            initial_tokens = cast(float, self.initial_tokens)  # Set in config validator
             tokens = min(initial_tokens, self.capacity)
             if self._window_start_timestamp is not None:
                 # Align slot to window_start_time
